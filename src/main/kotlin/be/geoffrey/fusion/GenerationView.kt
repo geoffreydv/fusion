@@ -1,54 +1,54 @@
 package be.geoffrey.fusion
 
-import com.vaadin.flow.component.button.Button
+import com.vaadin.flow.component.combobox.ComboBox
 import com.vaadin.flow.component.dependency.StyleSheet
-import com.vaadin.flow.component.html.*
-import com.vaadin.flow.component.notification.Notification
-import com.vaadin.flow.component.orderedlayout.BoxSizing
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout
+import com.vaadin.flow.component.html.H1
+import com.vaadin.flow.component.html.H2
+import com.vaadin.flow.component.html.Hr
 import com.vaadin.flow.component.orderedlayout.VerticalLayout
 import com.vaadin.flow.component.textfield.TextArea
 import com.vaadin.flow.router.Route
 
+// Manage both Java example and XML example at the same time
+// Just to try to improve the overall design
+
+interface Structure
+
+data class ComplexStructure(val name: String,
+                            val fields: List<Field>) : Structure
+
+data class SimpleStructure(val name: String) : Structure
+
+data class Field(val name: String, val type: Structure)
 
 @Route("generation")
 @StyleSheet("/style.css")
-class GenerationView : HorizontalLayout() {
+class GenerationView : VerticalLayout() {
+
     init {
+        val knownStructures = HashMap<String, Structure>()
 
-        width = "100%"
-        boxSizing = BoxSizing.BORDER_BOX
+        knownStructures["String"] = SimpleStructure("String")
+        knownStructures["Person"] = ComplexStructure("Person", listOf(
+                Field("firstName", knownStructures["String"]!!),
+                Field("lastName", knownStructures["String"]!!)
+        ))
 
-        val leftPane = VerticalLayout(
-                H1("Fusion"),
-                H2("Active Project: FirstProject"),
-                H2("Structure Sources"),
-                UnorderedList(
-                        ListItem("Java Sources - C:/tmp/java_sources"),
-                        ListItem("XML Sources - C:/tmp/xml_sources")),
-                Button("Click me") {
-                    Notification.show("Hello Spring+Vaadin userzz!")
-                })
+        val outputBox = TextArea()
+        outputBox.isReadOnly = true
 
-        leftPane.width = "20%"
+        val rootCombo = ComboBox<String>()
+        rootCombo.setItems(knownStructures.keys)
+        rootCombo.addValueChangeListener { outputBox.value = generateOutput(it.value) }
 
-        val templateArea = TextArea("Template")
-        templateArea.width = "100%"
-
-        val resultArea = TextArea("Result")
-        resultArea.isReadOnly = true
-        resultArea.width = "100%"
-
-        val rightPane = VerticalLayout(
-                templateArea,
-                resultArea
+        add(
+                H1("Codename: Fusion"),
+                H2("Generate Example"),
+                rootCombo,
+                Hr(),
+                outputBox
         )
-        rightPane.width = "80%"
-
-        rightPane.expand(templateArea, resultArea)
-
-        add(leftPane, rightPane)
-
-        expand()
     }
+
+    private fun generateOutput(rootType: String) = "My Output..."
 }
