@@ -43,14 +43,15 @@ class KnowledgeBase {
     }
 }
 
-class Java8Renderer {
+class Java8Renderer(private val stringTemplate: String = "StringValue",
+                    private val variableName: String = "tmp") {
 
     fun render(structure: Structure): String {
-        return "${renderInitialization(structure)} ${renderBuildStructure(structure)}"
+        return "${renderInitialization(structure)}${renderBuildStructure(structure)}"
     }
 
     private fun renderInitialization(structure: Structure): String {
-        return "${structure.name} tmp = "
+        return "${structure.name} $variableName = "
     }
 
     private fun renderBuildStructure(structure: Structure): String {
@@ -63,7 +64,7 @@ class Java8Renderer {
 
             for (field in structure.fields) {
                 if (field.structure is SimpleStructure) {
-                    output += "tmp.${field.name} = ${renderSimpleStructure(field.structure)};\n"
+                    output += "$variableName.${field.name} = ${renderSimpleStructure(field.structure)};\n"
                 }
             }
         }
@@ -74,7 +75,7 @@ class Java8Renderer {
     private fun renderSimpleStructure(structure: SimpleStructure): String {
 
         if (structure.name == "String") {
-            return "\"StringValue\""
+            return "\"$stringTemplate\""
         }
 
         throw IllegalArgumentException("Sorry, no clue")
