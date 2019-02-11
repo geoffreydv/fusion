@@ -20,27 +20,86 @@ data class ComplexStructure(override val name: String, val fields: List<Field>) 
 
 data class SimpleStructure(override val name: String) : Structure
 
-data class Field(val name: String, val type: Structure)
+data class Field(val name: String, val structure: Structure)
 
-@Route("generation")
-@StyleSheet("/style.css")
-class GenerationView : VerticalLayout() {
+class KnowledgeBase {
 
     private val knownStructures = HashMap<String, Structure>()
 
     init {
         knownStructures["String"] = SimpleStructure("String")
-        knownStructures["Person"] = ComplexStructure("Person",
+    }
+
+    fun addStructure(structure: Structure) {
+        knownStructures[structure.name] = structure
+    }
+
+    fun get(key: String): Structure? {
+        return knownStructures[key]
+    }
+
+    fun keys(): Set<String> {
+        return knownStructures.keys
+    }
+}
+
+class Java8Renderer {
+
+    fun render(structure: Structure): String {
+        return "${renderInitialization(structure)} ${renderBuildStructure(structure)}"
+    }
+
+    private fun renderInitialization(structure: Structure): String {
+        return "${structure.name} tmp = "
+    }
+
+    private fun renderBuildStructure(structure: Structure): String {
+
+        var output = ""
+        if (structure is SimpleStructure) {
+            output += renderSimpleStructure(structure) + ";"
+        } else if (structure is ComplexStructure) {
+            output += "new ${structure.name}();\n"
+
+            for (field in structure.fields) {
+                if (field.structure is SimpleStructure) {
+                    output += "tmp.${field.name} = ${renderSimpleStructure(field.structure)};\n"
+                }
+            }
+        }
+
+        return output
+    }
+
+    private fun renderSimpleStructure(structure: SimpleStructure): String {
+
+        if (structure.name == "String") {
+            return "\"StringValue\""
+        }
+
+        throw IllegalArgumentException("Sorry, no clue")
+    }
+}
+
+@Route("generation")
+@StyleSheet("/style.css")
+class GenerationView : VerticalLayout() {
+
+    private val kb = KnowledgeBase()
+
+    init {
+
+        kb.addStructure(ComplexStructure("Person",
                 listOf(
-                        Field("firstName", knownStructures["String"]!!),
-                        Field("lastName", knownStructures["String"]!!)
-                ))
+                        Field("firstName", kb.get("String")!!),
+                        Field("lastName", kb.get("String")!!)
+                )))
 
         val outputBox = TextArea()
         outputBox.isReadOnly = true
 
         val rootCombo = ComboBox<String>()
-        rootCombo.setItems(knownStructures.keys)
+        rootCombo.setItems(kb.keys())
         rootCombo.addValueChangeListener { outputBox.value = generateOutput(it.value) }
 
         outputBox.width = "800px"
@@ -56,22 +115,7 @@ class GenerationView : VerticalLayout() {
     }
 
     private fun generateOutput(rootType: String): String {
-        val type = knownStructures[rootType]
-
-        // First write a variable assignment, this is specific to the language
-        // If Java
-
-        var output = ""
-        output += "${type!!.name} tmp = "
-
-        if (type is SimpleStructure) {
-            if (type.name == "String") {
-                output += "\"StringValue\";"
-            }
-        } else if (type is ComplexStructure) {
-            output += "new ${type.name}();"
-        }
-
-        return output;
+        val structure = kb.get(rootType)
+        return Java8Renderer().render(structure!!)
     }
 }
