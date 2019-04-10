@@ -24,29 +24,39 @@ data class Field(val name: String, val structure: Structure)
 
 class KnowledgeBase {
 
+    private val renderers = HashMap<String, Renderer>()
     private val knownStructures = HashMap<String, Structure>()
 
     init {
         knownStructures["String"] = SimpleStructure("String")
+        renderers["Java8"] = Java8Renderer()
+    }
+
+    fun getRenderer(name: String): Renderer? {
+        return renderers[name]
     }
 
     fun addStructure(structure: Structure) {
         knownStructures[structure.name] = structure
     }
 
-    fun get(key: String): Structure? {
+    fun getStructure(key: String): Structure? {
         return knownStructures[key]
     }
 
-    fun keys(): Set<String> {
+    fun structureKeys(): Set<String> {
         return knownStructures.keys
     }
 }
 
-class Java8Renderer(private val stringTemplate: String = "StringValue",
-                    private val variableName: String = "tmp") {
+interface Renderer {
+    fun render(structure: Structure): String
+}
 
-    fun render(structure: Structure): String {
+class Java8Renderer(private val stringTemplate: String = "StringValue",
+                    private val variableName: String = "tmp") : Renderer {
+
+    override fun render(structure: Structure): String {
         return "${renderInitialization(structure)}${renderBuildStructure(structure)}"
     }
 
@@ -92,15 +102,15 @@ class GenerationView : VerticalLayout() {
 
         kb.addStructure(ComplexStructure("Person",
                 listOf(
-                        Field("firstName", kb.get("String")!!),
-                        Field("lastName", kb.get("String")!!)
+                        Field("firstName", kb.getStructure("String")!!),
+                        Field("lastName", kb.getStructure("String")!!)
                 )))
 
         val outputBox = TextArea()
         outputBox.isReadOnly = true
 
         val rootCombo = ComboBox<String>()
-        rootCombo.setItems(kb.keys())
+        rootCombo.setItems(kb.structureKeys())
         rootCombo.addValueChangeListener { outputBox.value = generateOutput(it.value) }
 
         outputBox.width = "800px"
@@ -116,7 +126,7 @@ class GenerationView : VerticalLayout() {
     }
 
     private fun generateOutput(rootType: String): String {
-        val structure = kb.get(rootType)
+        val structure = kb.getStructure(rootType)
         return Java8Renderer().render(structure!!)
     }
 }

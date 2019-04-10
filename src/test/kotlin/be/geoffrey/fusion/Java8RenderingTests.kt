@@ -9,9 +9,24 @@ class Java8RenderingTests {
     fun renderSimpleString() {
 
         val kb = KnowledgeBase()
-        val str = kb.get("String")
+        val str = kb.getStructure("String")
 
         assertThat(buildRenderer().render(str!!)).isEqualTo("""
+            String tmp = "TestString";
+        """.trimIndent())
+    }
+
+    @Test
+    fun renderTypeWithFields() {
+
+        val kb = KnowledgeBase()
+
+        val struct = ComplexStructure("Address", listOf(
+                Field("street", kb.getStructure("String")!!),
+                Field("city", kb.getStructure("String")!!))
+        )
+
+        assertThat(buildRenderer().render(struct)).isEqualTo("""
             String tmp = "TestString";
         """.trimIndent())
     }
