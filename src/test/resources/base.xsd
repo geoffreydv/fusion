@@ -1,12 +1,3 @@
 <?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-
-    <xs:complexType name="MyTest">
-        <xs:sequence>
-            <xs:element name="AString" type="xs:string" />
-            <xs:element name="AnInteger" type="xs:integer" />
-            <xs:element name="ADouble" type="xs:double" />
-        </xs:sequence>
-    </xs:complexType>
-
 </xs:schema>
