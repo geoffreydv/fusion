@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema">
+
+    <xs:simpleType name="MinLengthNumber">
+        <xs:restriction base="xs:int">
+            <xs:minLength value="10"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="Enum">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Audi"/>
+            <xs:enumeration value="BMW"/>
+        </xs:restriction>
+    </xs:simpleType>
+</schema>

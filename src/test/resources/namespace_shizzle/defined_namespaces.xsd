@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ns1="namespace1"
+           xmlns:ns2="namespace2"
+           xmlns:generiek="http://generiek-02_00.vip.vlaanderen.be"
+            xs:bla="test">
+
+    <xs:complexType name="Hoi">
+        <xs:sequence>
+            <xs:element name="Ns1" type="ns1:woep" />
+            <xs:element name="Ns2" type="ns2:woep" />
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>

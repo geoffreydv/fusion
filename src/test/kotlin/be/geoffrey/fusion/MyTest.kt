@@ -2,9 +2,11 @@ package be.geoffrey.fusion
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
-import org.w3._2001.xmlschema.*
 import org.w3._2001.xmlschema.Element
-import java.io.FileInputStream
+import org.w3._2001.xmlschema.Facet
+import org.w3._2001.xmlschema.Schema
+import java.io.File
+import java.io.StringReader
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
 
@@ -57,10 +59,24 @@ class TypeDb(knownTypes: List<KnownType>) {
     }
 }
 
+private const val NAMESPACE_INDICATION = "namespace_definition"
+
 class SchemaParser {
 
     fun parse(file: String): TypeDb {
-        val schema = JAXB.unmarshal(FileInputStream(file), Schema::class.java)
+
+        val asString = File(file).readText()
+
+        var replacedForInterpreting = asString.replace(Regex("xmlns:(.*?)=\"(.*?)\"")) {
+            "${it.groupValues[0]} xmlns_hack:${it.groupValues[1]}=\"${it.groupValues[2]}\""
+        }
+
+
+        replacedForInterpreting = replacedForInterpreting.replaceFirst("schema", "schema xmlns:xmlns_hack=\"$NAMESPACE_INDICATION\"")
+        val sw = StringReader(replacedForInterpreting)
+        val schema = JAXB.unmarshal(sw, Schema::class.java)
+
+        val knownNamespaces = extractNamespaces(schema)
 
         val typesInFile = mutableListOf<KnownType>()
 
@@ -68,22 +84,24 @@ class SchemaParser {
             if (item is org.w3._2001.xmlschema.TopLevelComplexType) {
 
                 val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
+                if (item.sequence != null) {
+                    for (sequenceItem in item.sequence.particle) {
+                        if (sequenceItem is JAXBElement<*>) {
 
-                for (sequenceItem in item.sequence.particle) {
-                    if (sequenceItem is JAXBElement<*>) {
-
-                        val actualEntry = sequenceItem.value
-                        if (actualEntry is Element) {
-                            elementsInComplexType.add(
-                                    Element(actualEntry.name,
-                                            QName("http://www.w3.org/2001/XMLSchema", actualEntry.type!!.localPart))
-                            )
+                            val actualEntry = sequenceItem.value
+                            if (actualEntry is Element) {
+                                elementsInComplexType.add(
+                                        Element(actualEntry.name,
+                                                QName("http://www.w3.org/2001/XMLSchema", actualEntry.type!!.localPart))
+                                )
+                            }
                         }
                     }
-
-                    val myType = ComplexType(QName("", item.name!!), elementsInComplexType)
-                    typesInFile.add(myType)
                 }
+
+                val myType = ComplexType(QName("", item.name!!), elementsInComplexType)
+                typesInFile.add(myType)
+
             } else if (item is org.w3._2001.xmlschema.SimpleType) {
 
                 val name = item.name
@@ -92,10 +110,10 @@ class SchemaParser {
                 val restrictions = mutableListOf<Restriction>()
 
                 for (facetJaxbElement in item.restriction.facets) {
-                    if(facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "enumeration") {
+                    if (facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "enumeration") {
                         val value = (facetJaxbElement.value as Facet).value
                         restrictions.add(EnumRestriction(value))
-                    } else if(facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "minLength") {
+                    } else if (facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "minLength") {
                         val minLength = (facetJaxbElement.value as Facet).value
                         restrictions.add(MinLengthRestriction(Integer.valueOf(minLength)))
                     }
@@ -110,6 +128,17 @@ class SchemaParser {
 
         return TypeDb(typesInFile)
     }
+
+    private fun extractNamespaces(schema: Schema): HashMap<String, String> {
+        val foundNamespaces = hashMapOf<String, String>()
+        schema.otherAttributes.forEach { name, value ->
+            if (name.namespaceURI == NAMESPACE_INDICATION) {
+                foundNamespaces[name!!.localPart] = value
+            }
+        }
+
+        return foundNamespaces
+    }
 }
 
 class Testing {
@@ -121,6 +150,8 @@ class Testing {
     - [ ] Inheritance
     - [ ] Internal complex type should be added as a complex type with a random name
     - [ ] Add all possible restrictions
+    - [ ] formDefault test
+    - [ ] test xmlns with single quotes
 
      */
 
@@ -158,6 +189,20 @@ class Testing {
                         EnumRestriction("Audi"),
                         EnumRestriction("BMW")
                 )))
+    }
+
+    @Test
+    fun testNamespaceResolution() {
+
+        val parser = SchemaParser()
+        val typeDb = parser.parse("src/test/resources/namespace_shizzle/defined_namespaces.xsd")
+
+        assertThat(typeDb.getType(QName("", "Hoi"))).isEqualTo(
+                ComplexType(QName("", "Hoi"),
+                        listOf(
+                                Element("Ns1", QName("namespace1", "woep")),
+                                Element("Ns2", QName("namespace2", "woep"))
+                        )))
     }
 
 }
