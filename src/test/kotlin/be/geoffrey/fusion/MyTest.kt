@@ -67,16 +67,16 @@ class SchemaParser {
 
         val asString = File(file).readText()
 
-        var replacedForInterpreting = asString.replace(Regex("xmlns:(.*?)=\"(.*?)\"")) {
-            "${it.groupValues[0]} xmlns_hack:${it.groupValues[1]}=\"${it.groupValues[2]}\""
+        var replacedForInterpreting = asString.replace(Regex("xmlns(:?)(.*?)=\"(.*?)\"")) {
+            "${it.groupValues[0]} xmlns_hack${it.groupValues[1]}${it.groupValues[2]}=\"${it.groupValues[3]}\""
         }
-
 
         replacedForInterpreting = replacedForInterpreting.replaceFirst("schema", "schema xmlns:xmlns_hack=\"$NAMESPACE_INDICATION\"")
         val sw = StringReader(replacedForInterpreting)
         val schema = JAXB.unmarshal(sw, Schema::class.java)
 
         val knownNamespaces = extractNamespaces(schema)
+        val defaultNamespace = knownNamespaces[""]!!
 
         val typesInFile = mutableListOf<KnownType>()
 
@@ -90,16 +90,14 @@ class SchemaParser {
 
                             val actualEntry = sequenceItem.value
                             if (actualEntry is Element) {
-                                elementsInComplexType.add(
-                                        Element(actualEntry.name,
-                                                QName("http://www.w3.org/2001/XMLSchema", actualEntry.type!!.localPart))
+                                elementsInComplexType.add(Element(actualEntry.name, QName(actualEntry.type!!.namespaceURI, actualEntry.type!!.localPart))
                                 )
                             }
                         }
                     }
                 }
 
-                val myType = ComplexType(QName("", item.name!!), elementsInComplexType)
+                val myType = ComplexType(QName(defaultNamespace, item.name!!), elementsInComplexType)
                 typesInFile.add(myType)
 
             } else if (item is org.w3._2001.xmlschema.SimpleType) {
@@ -134,9 +132,12 @@ class SchemaParser {
         schema.otherAttributes.forEach { name, value ->
             if (name.namespaceURI == NAMESPACE_INDICATION) {
                 foundNamespaces[name!!.localPart] = value
+            } else if (name.localPart == "xmlns_hack") {
+                foundNamespaces[""] = value
             }
         }
 
+        foundNamespaces.putIfAbsent("", "")
         return foundNamespaces
     }
 }
@@ -202,6 +203,19 @@ class Testing {
                         listOf(
                                 Element("Ns1", QName("namespace1", "woep")),
                                 Element("Ns2", QName("namespace2", "woep"))
+                        )))
+    }
+
+    @Test
+    fun testNamespaceResolutionXmlns() {
+
+        val parser = SchemaParser()
+        val typeDb = parser.parse("src/test/resources/namespace_shizzle/xmlns_testing.xsd")
+
+        assertThat(typeDb.getType(QName("DefaultNamespace", "Hoi"))).isEqualTo(
+                ComplexType(QName("DefaultNamespace", "Hoi"),
+                        listOf(
+                                Element("Ns1", QName("http://www.w3.org/2001/XMLSchema", "string"))
                         )))
     }
 

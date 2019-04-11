@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<xs:schema xmlns="DefaultNamespace"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:complexType name="Hoi">
+        <xs:sequence>
+            <xs:element name="Ns1" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>
