@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        targetNamespace="top-level-woep">
+
+    <xs:include schemaLocation="include_me.xsd"/>
+
+    <xs:complexType name="Hallo">
+        <xs:sequence>
+            <xs:element name="Included" type="IncludedType"/>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>

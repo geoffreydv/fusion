@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 import org.w3._2001.xmlschema.Element
 import org.w3._2001.xmlschema.Facet
+import org.w3._2001.xmlschema.Include
 import org.w3._2001.xmlschema.Schema
 import java.io.File
 import java.io.StringReader
@@ -44,18 +45,26 @@ data class ComplexType(val name: QName,
     }
 }
 
-class TypeDb(knownTypes: List<KnownType>) {
+class TypeDb(knownTypes: Collection<KnownType> = listOf()) {
 
     private val knownTypesAsMap = HashMap<QName, KnownType>()
 
     init {
-        for (knownType in knownTypes) {
-            knownTypesAsMap[knownType.getQName()] = knownType
-        }
+        addTypes(knownTypes)
     }
 
     fun getType(type: QName): KnownType? {
         return knownTypesAsMap[type]
+    }
+
+    fun addTypes(typesToAdd: Collection<KnownType>) {
+        for (knownType in typesToAdd) {
+            knownTypesAsMap[knownType.getQName()] = knownType
+        }
+    }
+
+    fun addTypes(other: TypeDb) {
+        addTypes(other.knownTypesAsMap.values)
     }
 }
 
@@ -63,9 +72,12 @@ private const val NAMESPACE_INDICATION = "namespace_definition"
 
 class SchemaParser {
 
-    fun parse(file: String): TypeDb {
+    fun readAllElementsAndTypesInFile(schemaFile: String,
+                                      targetNamespaceOverride: String? = null): TypeDb {
 
-        val asString = File(file).readText()
+        val knownTypes = TypeDb()
+
+        val asString = File(schemaFile).readText()
 
         var replacedForInterpreting = asString.replace(Regex("xmlns(:?)(.*?)=\"(.*?)\"")) {
             "${it.groupValues[0]} xmlns_hack${it.groupValues[1]}${it.groupValues[2]}=\"${it.groupValues[3]}\""
@@ -75,10 +87,18 @@ class SchemaParser {
         val sw = StringReader(replacedForInterpreting)
         val schema = JAXB.unmarshal(sw, Schema::class.java)
 
-        val knownNamespaces = extractNamespaces(schema)
-        val defaultNamespace = knownNamespaces[""]!!
+//        val knownNamespaces = extractNamespaces(schema)
 
-        val typesInFile = mutableListOf<KnownType>()
+        val thisSchemaTargetNamespace = determineTargetNamespace(schema, targetNamespaceOverride)
+
+        val entriesInThisFile = mutableListOf<KnownType>()
+
+        for (extension in schema.includeOrImportOrRedefine) {
+            if (extension is Include) {
+                val pathOfOtherXsd = File(schemaFile).parent + File.separator + extension.schemaLocation
+                knownTypes.addTypes(readAllElementsAndTypesInFile(pathOfOtherXsd, thisSchemaTargetNamespace))
+            }
+        }
 
         for (item in schema.simpleTypeOrComplexTypeOrGroup) {
             if (item is org.w3._2001.xmlschema.TopLevelComplexType) {
@@ -90,15 +110,16 @@ class SchemaParser {
 
                             val actualEntry = sequenceItem.value
                             if (actualEntry is Element) {
-                                elementsInComplexType.add(Element(actualEntry.name, QName(actualEntry.type!!.namespaceURI, actualEntry.type!!.localPart))
-                                )
+                                val referencedNamespace = if (!actualEntry.type!!.namespaceURI.isNullOrEmpty()) actualEntry.type!!.namespaceURI else thisSchemaTargetNamespace
+                                val referencedType = QName(referencedNamespace, actualEntry.type!!.localPart)
+                                elementsInComplexType.add(Element(actualEntry.name, referencedType))
                             }
                         }
                     }
                 }
 
-                val myType = ComplexType(QName(defaultNamespace, item.name!!), elementsInComplexType)
-                typesInFile.add(myType)
+                val myType = ComplexType(QName(thisSchemaTargetNamespace, item.name!!), elementsInComplexType)
+                entriesInThisFile.add(myType)
 
             } else if (item is org.w3._2001.xmlschema.SimpleType) {
 
@@ -117,14 +138,23 @@ class SchemaParser {
                     }
                 }
 
-                typesInFile.add(
-                        SimpleType(QName("", name),
+                entriesInThisFile.add(
+                        SimpleType(QName(thisSchemaTargetNamespace, name),
                                 QName("http://www.w3.org/2001/XMLSchema", base.localPart),
                                 restrictions))
             }
         }
 
-        return TypeDb(typesInFile)
+        knownTypes.addTypes(entriesInThisFile)
+        return knownTypes
+    }
+
+    private fun determineTargetNamespace(schema: Schema, targetNamespaceOverride: String?): String {
+        if (targetNamespaceOverride != null) {
+            return targetNamespaceOverride
+        }
+
+        return schema.targetNamespace ?: ""
     }
 
     private fun extractNamespaces(schema: Schema): HashMap<String, String> {
@@ -153,6 +183,10 @@ class Testing {
     - [ ] Add all possible restrictions
     - [ ] formDefault test
     - [ ] test xmlns with single quotes
+    - [ ] Make sure includes don't recurse
+    - [ ] Detect include cases that don't work (different namespaces in the files)
+    - [ ] Include w/ directory traversal (recursion)
+    - [ ] Solve target namespace vs xmlns
 
      */
 
@@ -160,7 +194,7 @@ class Testing {
     fun loadingOneComplexTypeWithSomeBasicFields() {
 
         val parser = SchemaParser()
-        val typeDb = parser.parse("src/test/resources/simple_types/one_simple_type_container.xsd")
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/one_simple_type_container.xsd")
         val type = typeDb.getType(QName("", "TypesTest"))
 
         assertThat(type).isEqualTo(ComplexType(QName("", "TypesTest"), listOf(
@@ -174,7 +208,7 @@ class Testing {
     fun loadingSimpleTypeVariations() {
 
         val parser = SchemaParser()
-        val typeDb = parser.parse("src/test/resources/simple_types/custom_simple_type_variations.xsd")
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/custom_simple_type_variations.xsd")
 
         assertThat(typeDb.getType(QName("", "MinLengthNumber"))).isEqualTo(SimpleType(
                 QName("", "MinLengthNumber"),
@@ -196,7 +230,7 @@ class Testing {
     fun testNamespaceResolution() {
 
         val parser = SchemaParser()
-        val typeDb = parser.parse("src/test/resources/namespace_shizzle/defined_namespaces.xsd")
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/namespace_shizzle/defined_namespaces.xsd")
 
         assertThat(typeDb.getType(QName("", "Hoi"))).isEqualTo(
                 ComplexType(QName("", "Hoi"),
@@ -210,12 +244,34 @@ class Testing {
     fun testNamespaceResolutionXmlns() {
 
         val parser = SchemaParser()
-        val typeDb = parser.parse("src/test/resources/namespace_shizzle/xmlns_testing.xsd")
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/namespace_shizzle/targetnamespace_test.xsd")
+
+        assertThat(typeDb.getType(QName("DefaultNamespace", "SimpleHoi"))).isNotNull
 
         assertThat(typeDb.getType(QName("DefaultNamespace", "Hoi"))).isEqualTo(
                 ComplexType(QName("DefaultNamespace", "Hoi"),
                         listOf(
                                 Element("Ns1", QName("http://www.w3.org/2001/XMLSchema", "string"))
+                        )))
+    }
+
+    @Test
+    fun detectIncludeWithInvalidTargetNamespace() {
+
+    }
+
+    @Test
+    fun testSimpleInclude() {
+        val parser = SchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/includes/top_level.xsd")
+
+        assertThat(typeDb.getType(QName("something_else", "IncludedType"))).isNull()
+        assertThat(typeDb.getType(QName("top-level-woep", "IncludedType"))).isNotNull
+
+        assertThat(typeDb.getType(QName("top-level-woep", "Hallo"))).isEqualTo(
+                ComplexType(QName("top-level-woep", "Hallo"),
+                        listOf(
+                                Element("Included", QName("top-level-woep", "IncludedType"))
                         )))
     }
 
