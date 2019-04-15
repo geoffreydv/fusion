@@ -1,5 +1,7 @@
 package be.geoffrey.fusion
 
+import be.geoffrey.fusion.ContentType.DEFINITION
+import be.geoffrey.fusion.ContentType.ELEMENT
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 import org.w3._2001.xmlschema.Element
@@ -13,14 +15,34 @@ import javax.xml.bind.JAXBElement
 
 data class QName(val namespace: String, val name: String)
 
-interface KnownType {
+enum class ContentType {
+    ELEMENT,
+    DEFINITION
+}
+
+interface Indexable {
     fun getQName(): QName
+
+    fun getContentType(): ContentType
 }
 
 interface PossiblePartOfGroup
 
+// Maybe add "top-level" element?
+
 data class Element(val name: String,
                    val type: QName) : PossiblePartOfGroup
+
+data class TopLevelElement(val name: String, val type: QName) : Indexable {
+
+    override fun getQName(): QName {
+        return type
+    }
+
+    override fun getContentType(): ContentType {
+        return ELEMENT
+    }
+}
 
 interface Restriction
 
@@ -30,7 +52,11 @@ data class EnumRestriction(val value: String) : Restriction
 
 data class SimpleType(private val name: QName,
                       private val baseType: QName,
-                      val restrictions: List<Restriction>) : KnownType {
+                      val restrictions: List<Restriction>) : Indexable {
+
+    override fun getContentType(): ContentType {
+        return DEFINITION
+    }
 
     override fun getQName(): QName {
         return name
@@ -38,33 +64,56 @@ data class SimpleType(private val name: QName,
 }
 
 data class ComplexType(val name: QName,
-                       val fields: List<be.geoffrey.fusion.Element>) : PossiblePartOfGroup, KnownType {
+                       val fields: List<be.geoffrey.fusion.Element>) : PossiblePartOfGroup, Indexable {
+
+    override fun getContentType(): ContentType {
+        return DEFINITION
+    }
 
     override fun getQName(): QName {
         return name
     }
 }
 
-class TypeDb(knownTypes: Collection<KnownType> = listOf()) {
+class TypeDb(entries: Collection<Indexable> = listOf()) {
 
-    private val knownTypesAsMap = HashMap<QName, KnownType>()
+    private val knownTypesAsMap = hashMapOf<ContentType, HashMap<QName, Indexable>>(
+            Pair(ELEMENT, hashMapOf()),
+            Pair(DEFINITION, hashMapOf()))
 
     init {
-        addTypes(knownTypes)
+        addEntries(entries)
     }
 
-    fun getType(type: QName): KnownType? {
-        return knownTypesAsMap[type]
-    }
-
-    fun addTypes(typesToAdd: Collection<KnownType>) {
-        for (knownType in typesToAdd) {
-            knownTypesAsMap[knownType.getQName()] = knownType
+    fun addEntries(entries: Collection<Indexable>) {
+        for (entry in entries) {
+            knownTypesAsMap[entry.getContentType()]!![entry.getQName()] = entry
         }
     }
 
-    fun addTypes(other: TypeDb) {
-        addTypes(other.knownTypesAsMap.values)
+    fun addEntries(other: TypeDb) {
+        for (value in other.knownTypesAsMap.values) {
+            addEntries(value.values)
+        }
+    }
+
+    fun getEntry(name: QName, type: ContentType = DEFINITION): Indexable? {
+        return knownTypesAsMap[type]!![name]
+    }
+
+    fun getEntryByPartOfName(namespace: String,
+                             partOfName: String,
+                             contentType: ContentType): List<Indexable> {
+
+        val results = mutableListOf<Indexable>()
+
+        knownTypesAsMap[contentType]!!.forEach { (_, type) ->
+            if (type.getQName().namespace == namespace && type.getQName().name.contains(partOfName)) {
+                results.add(type)
+            }
+        }
+
+        return results
     }
 }
 
@@ -91,12 +140,12 @@ class SchemaParser {
 
         val thisSchemaTargetNamespace = determineTargetNamespace(schema, targetNamespaceOverride)
 
-        val entriesInThisFile = mutableListOf<KnownType>()
+        val entriesInThisFile = mutableListOf<Indexable>()
 
         for (extension in schema.includeOrImportOrRedefine) {
             if (extension is Include) {
                 val pathOfOtherXsd = File(schemaFile).parent + File.separator + extension.schemaLocation
-                knownTypes.addTypes(readAllElementsAndTypesInFile(pathOfOtherXsd, thisSchemaTargetNamespace))
+                knownTypes.addEntries(readAllElementsAndTypesInFile(pathOfOtherXsd, thisSchemaTargetNamespace))
             }
         }
 
@@ -145,7 +194,7 @@ class SchemaParser {
             }
         }
 
-        knownTypes.addTypes(entriesInThisFile)
+        knownTypes.addEntries(entriesInThisFile)
         return knownTypes
     }
 
@@ -195,7 +244,7 @@ class Testing {
 
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/one_simple_type_container.xsd")
-        val type = typeDb.getType(QName("", "TypesTest"))
+        val type = typeDb.getEntry(QName("", "TypesTest"))
 
         assertThat(type).isEqualTo(ComplexType(QName("", "TypesTest"), listOf(
                 Element("AString", QName("http://www.w3.org/2001/XMLSchema", "string")),
@@ -210,14 +259,14 @@ class Testing {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/custom_simple_type_variations.xsd")
 
-        assertThat(typeDb.getType(QName("", "MinLengthNumber"))).isEqualTo(SimpleType(
+        assertThat(typeDb.getEntry(QName("", "MinLengthNumber"))).isEqualTo(SimpleType(
                 QName("", "MinLengthNumber"),
                 QName("http://www.w3.org/2001/XMLSchema", "int"),
                 listOf(
                         MinLengthRestriction(10)
                 )))
 
-        assertThat(typeDb.getType(QName("", "Enum"))).isEqualTo(SimpleType(
+        assertThat(typeDb.getEntry(QName("", "Enum"))).isEqualTo(SimpleType(
                 QName("", "Enum"),
                 QName("http://www.w3.org/2001/XMLSchema", "string"),
                 listOf(
@@ -232,7 +281,7 @@ class Testing {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/namespace_shizzle/defined_namespaces.xsd")
 
-        assertThat(typeDb.getType(QName("", "Hoi"))).isEqualTo(
+        assertThat(typeDb.getEntry(QName("", "Hoi"))).isEqualTo(
                 ComplexType(QName("", "Hoi"),
                         listOf(
                                 Element("Ns1", QName("namespace1", "woep")),
@@ -246,9 +295,9 @@ class Testing {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/namespace_shizzle/targetnamespace_test.xsd")
 
-        assertThat(typeDb.getType(QName("DefaultNamespace", "SimpleHoi"))).isNotNull
+        assertThat(typeDb.getEntry(QName("DefaultNamespace", "SimpleHoi"))).isNotNull
 
-        assertThat(typeDb.getType(QName("DefaultNamespace", "Hoi"))).isEqualTo(
+        assertThat(typeDb.getEntry(QName("DefaultNamespace", "Hoi"))).isEqualTo(
                 ComplexType(QName("DefaultNamespace", "Hoi"),
                         listOf(
                                 Element("Ns1", QName("http://www.w3.org/2001/XMLSchema", "string"))
@@ -265,14 +314,38 @@ class Testing {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/includes/top_level.xsd")
 
-        assertThat(typeDb.getType(QName("something_else", "IncludedType"))).isNull()
-        assertThat(typeDb.getType(QName("top-level-woep", "IncludedType"))).isNotNull
+        assertThat(typeDb.getEntry(QName("something_else", "IncludedType"))).isNull()
+        assertThat(typeDb.getEntry(QName("top-level-woep", "IncludedType"))).isNotNull
 
-        assertThat(typeDb.getType(QName("top-level-woep", "Hallo"))).isEqualTo(
+        assertThat(typeDb.getEntry(QName("top-level-woep", "Hallo"))).isEqualTo(
                 ComplexType(QName("top-level-woep", "Hallo"),
                         listOf(
                                 Element("Included", QName("top-level-woep", "IncludedType"))
                         )))
     }
 
+    @Test
+    fun testParsingSimpleElement() {
+        val parser = SchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/single_element.xsd")
+
+
+        assertThat(typeDb.getEntry(QName("", "Geoffrey"), ELEMENT))
+                .isEqualTo(TopLevelElement("Geoffrey", QName("http://www.w3.org/2001/XMLSchema", "string")))
+    }
+
+    @Test
+    fun testParsingElementWithInlineDefinedComplexType() {
+
+        val parser = SchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_complex_type.xsd")
+
+        val foundTypes = typeDb.getEntryByPartOfName("foobar", "FoodBar", DEFINITION)
+        assertThat(foundTypes).hasSize(1)
+
+        val autoCreatedType = foundTypes[0]
+
+        assertThat(typeDb.getEntry(QName("foobar", "FoodBar")))
+                .isEqualTo(Element("FoodBar", autoCreatedType.getQName()))
+    }
 }
