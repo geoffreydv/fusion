@@ -33,10 +33,10 @@ interface PossiblePartOfGroup
 data class Element(val name: String,
                    val type: QName) : PossiblePartOfGroup
 
-data class TopLevelElement(val name: String, val type: QName) : Indexable {
+data class TopLevelElement(val name: QName, val type: QName) : Indexable {
 
     override fun getQName(): QName {
-        return type
+        return name
     }
 
     override fun getContentType(): ContentType {
@@ -159,8 +159,7 @@ class SchemaParser {
 
                             val actualEntry = sequenceItem.value
                             if (actualEntry is Element) {
-                                val referencedNamespace = if (!actualEntry.type!!.namespaceURI.isNullOrEmpty()) actualEntry.type!!.namespaceURI else thisSchemaTargetNamespace
-                                val referencedType = QName(referencedNamespace, actualEntry.type!!.localPart)
+                                val referencedType = determineNamespace(thisSchemaTargetNamespace, actualEntry.type!!)
                                 elementsInComplexType.add(Element(actualEntry.name, referencedType))
                             }
                         }
@@ -191,11 +190,19 @@ class SchemaParser {
                         SimpleType(QName(thisSchemaTargetNamespace, name),
                                 QName("http://www.w3.org/2001/XMLSchema", base.localPart),
                                 restrictions))
+
+            } else if(item is org.w3._2001.xmlschema.TopLevelElement) {
+                entriesInThisFile.add(TopLevelElement(QName(thisSchemaTargetNamespace, item.name), determineNamespace(thisSchemaTargetNamespace, item.type)))
             }
         }
 
         knownTypes.addEntries(entriesInThisFile)
         return knownTypes
+    }
+
+    private fun determineNamespace(thisSchemaTargetNamespace: String, originalQName: javax.xml.namespace.QName): QName {
+        val referencedNamespace = if (!originalQName.namespaceURI.isNullOrEmpty()) originalQName.namespaceURI else thisSchemaTargetNamespace
+        return QName(referencedNamespace, originalQName.localPart)
     }
 
     private fun determineTargetNamespace(schema: Schema, targetNamespaceOverride: String?): String {
@@ -331,7 +338,7 @@ class Testing {
 
 
         assertThat(typeDb.getEntry(QName("", "Geoffrey"), ELEMENT))
-                .isEqualTo(TopLevelElement("Geoffrey", QName("http://www.w3.org/2001/XMLSchema", "string")))
+                .isEqualTo(TopLevelElement(QName("", "Geoffrey"), QName("http://www.w3.org/2001/XMLSchema", "string")))
     }
 
     @Test
