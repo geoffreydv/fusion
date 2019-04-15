@@ -4,12 +4,11 @@ import be.geoffrey.fusion.ContentType.DEFINITION
 import be.geoffrey.fusion.ContentType.ELEMENT
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
+import org.w3._2001.xmlschema.*
 import org.w3._2001.xmlschema.Element
-import org.w3._2001.xmlschema.Facet
-import org.w3._2001.xmlschema.Include
-import org.w3._2001.xmlschema.Schema
 import java.io.File
 import java.io.StringReader
+import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
 
@@ -150,25 +149,8 @@ class SchemaParser {
         }
 
         for (item in schema.simpleTypeOrComplexTypeOrGroup) {
-            if (item is org.w3._2001.xmlschema.TopLevelComplexType) {
-
-                val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
-                if (item.sequence != null) {
-                    for (sequenceItem in item.sequence.particle) {
-                        if (sequenceItem is JAXBElement<*>) {
-
-                            val actualEntry = sequenceItem.value
-                            if (actualEntry is Element) {
-                                val referencedType = determineNamespace(thisSchemaTargetNamespace, actualEntry.type!!)
-                                elementsInComplexType.add(Element(actualEntry.name, referencedType))
-                            }
-                        }
-                    }
-                }
-
-                val myType = ComplexType(QName(thisSchemaTargetNamespace, item.name!!), elementsInComplexType)
-                entriesInThisFile.add(myType)
-
+            if (item is TopLevelComplexType) {
+                entriesInThisFile.add(parseComplexType(item, thisSchemaTargetNamespace))
             } else if (item is org.w3._2001.xmlschema.SimpleType) {
 
                 val name = item.name
@@ -191,13 +173,53 @@ class SchemaParser {
                                 QName("http://www.w3.org/2001/XMLSchema", base.localPart),
                                 restrictions))
 
-            } else if(item is org.w3._2001.xmlschema.TopLevelElement) {
-                entriesInThisFile.add(TopLevelElement(QName(thisSchemaTargetNamespace, item.name), determineNamespace(thisSchemaTargetNamespace, item.type)))
+            } else if (item is org.w3._2001.xmlschema.TopLevelElement) {
+
+                // IF the item has no type then it defines its type inside this element... Handle that!
+
+                val elementName = QName(thisSchemaTargetNamespace, item.name)
+
+                if (item.type != null) {
+                    entriesInThisFile.add(TopLevelElement(elementName, determineNamespace(thisSchemaTargetNamespace, item.type)))
+                } else {
+                    // Look inside this element for a complexType
+                    if (item.complexType != null) {
+
+                        // Give it a random name
+                        val randomName = item.name + UUID.randomUUID().toString()
+                        val generatedType = parseComplexType(item.complexType, thisSchemaTargetNamespace, randomName)
+                        entriesInThisFile.add(generatedType)
+
+                        // Save the element with that type...
+                        entriesInThisFile.add(TopLevelElement(elementName, generatedType.name))
+                    }
+                }
             }
         }
 
         knownTypes.addEntries(entriesInThisFile)
         return knownTypes
+    }
+
+    private fun parseComplexType(item: org.w3._2001.xmlschema.ComplexType,
+                                 thisSchemaTargetNamespace: String,
+                                 customName: String? = null): ComplexType {
+
+        val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
+        if (item.sequence != null) {
+            for (sequenceItem in item.sequence.particle) {
+                if (sequenceItem is JAXBElement<*>) {
+
+                    val actualEntry = sequenceItem.value
+                    if (actualEntry is Element) {
+                        val referencedType = determineNamespace(thisSchemaTargetNamespace, actualEntry.type!!)
+                        elementsInComplexType.add(Element(actualEntry.name, referencedType))
+                    }
+                }
+            }
+        }
+
+        return ComplexType(QName(thisSchemaTargetNamespace, customName ?: item.name!!), elementsInComplexType)
     }
 
     private fun determineNamespace(thisSchemaTargetNamespace: String, originalQName: javax.xml.namespace.QName): QName {
@@ -352,7 +374,7 @@ class Testing {
 
         val autoCreatedType = foundTypes[0]
 
-        assertThat(typeDb.getEntry(QName("foobar", "FoodBar")))
-                .isEqualTo(Element("FoodBar", autoCreatedType.getQName()))
+        assertThat(typeDb.getEntry(QName("foobar", "FoodBar"), ELEMENT))
+                .isEqualTo(TopLevelElement(QName("foobar", "FoodBar"), autoCreatedType.getQName()))
     }
 }

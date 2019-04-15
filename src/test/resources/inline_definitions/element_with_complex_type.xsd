@@ -10,9 +10,4 @@
         </xs:complexType>
     </xs:element>
 
-    <xs:complexType name="FoodBar">
-        <xs:sequence>
-
-        </xs:sequence>
-    </xs:complexType>
 </xs:schema>
