@@ -90,6 +90,14 @@ class TypeDb(entries: Collection<Indexable> = listOf()) {
         }
     }
 
+    fun getElement(name: QName): TopLevelElement? {
+        return getEntry(name, ELEMENT) as TopLevelElement
+    }
+
+    fun getType(name: QName): ComplexType? {
+        return getEntry(name, ELEMENT) as ComplexType
+    }
+
     fun getEntry(name: QName, type: ContentType = DEFINITION): Indexable? {
         return knownTypesAsMap[type]!![name]
     }
