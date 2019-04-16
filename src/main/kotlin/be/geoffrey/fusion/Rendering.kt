@@ -11,13 +11,13 @@ import javax.xml.transform.stream.StreamResult
 
 interface Renderer {
     fun render(element: TopLevelElement,
-               renderingOptions: Map<String, Any> = hashMapOf()): String
+               renderingOptions: Map<QName, (QName) -> String> = hashMapOf()): String
 }
 
 class XmlRenderer(val typeDb: TypeDb) : Renderer {
 
     override fun render(element: TopLevelElement,
-                        renderingOptions: Map<String, Any>): String {
+                        renderingOptions: Map<QName, (QName) -> String>): String {
 
         val icFactory = DocumentBuilderFactory.newInstance()
         val icBuilder: DocumentBuilder
@@ -26,6 +26,12 @@ class XmlRenderer(val typeDb: TypeDb) : Renderer {
         val doc = icBuilder.newDocument()
 
         val rootElement = doc.createElementNS(element.name.namespace, element.name.name)
+
+        if (renderingOptions.containsKey(element.type)) {
+            val textNode = doc.createTextNode(renderingOptions.getValue(element.type).invoke(element.type))
+            rootElement.appendChild(textNode)
+        }
+
         doc.appendChild(rootElement)
 
         val transformer = TransformerFactory.newInstance().newTransformer()

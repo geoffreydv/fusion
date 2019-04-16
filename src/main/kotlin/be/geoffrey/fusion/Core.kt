@@ -57,7 +57,7 @@ data class SimpleType(private val name: QName,
 }
 
 data class ComplexType(val name: QName,
-                       val fields: List<be.geoffrey.fusion.Element>) : PossiblePartOfGroup, Indexable {
+                       val fields: List<Element>) : PossiblePartOfGroup, Indexable {
 
     override fun getContentType(): ContentType {
         return DEFINITION
