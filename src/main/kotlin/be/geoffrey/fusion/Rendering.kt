@@ -40,7 +40,7 @@ class XmlRenderer(private val typeDb: TypeDb) : Renderer {
         val output = StreamResult(sw)
         transformer.transform(source, output)
 
-        return sw.toString()
+        return sw.toString().trim()
     }
 
     private fun renderSingleElement(doc: Document, element: ElementBase,
@@ -60,6 +60,11 @@ class XmlRenderer(private val typeDb: TypeDb) : Renderer {
             for (field in typeLookup.fields) {
                 renderedElement.appendChild(renderSingleElement(doc, field, renderingOptions))
             }
+        } else if (typeLookup != null && typeLookup is SimpleType) {
+
+            val textNode = doc.createTextNode("This is temporary for now...")
+            renderedElement.appendChild(textNode)
+
         } else if (renderingOptions.containsKey(elementType)) {
             // Add a textnode with the rendered value
             val textNode = doc.createTextNode(renderingOptions.getValue(elementType).invoke(elementType))

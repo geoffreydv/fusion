@@ -51,7 +51,6 @@ class RealXsdPlay {
             e.printStackTrace()
             false
         }
-
     }
 
     @Throws(FileNotFoundException::class)

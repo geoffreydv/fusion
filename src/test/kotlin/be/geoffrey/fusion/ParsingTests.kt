@@ -1,6 +1,7 @@
 package be.geoffrey.fusion
 
 import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 
 class ParsingTests {
@@ -87,11 +88,6 @@ class ParsingTests {
     }
 
     @Test
-    fun detectIncludeWithInvalidTargetNamespace() {
-
-    }
-
-    @Test
     fun testSimpleInclude() {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/includes/top_level.xsd")
@@ -104,6 +100,18 @@ class ParsingTests {
                         listOf(
                                 Element("Included", QName("top-level-woep", "IncludedType"))
                         )))
+    }
+
+    @Test
+    fun testSimpleImport() {
+        val parser = SchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/includes/importer.xsd")
+
+        assertThat(typeDb.getElement(QName("BowShikaWow", "Root"))).isEqualTo(
+                TopLevelElement(QName("BowShikaWow", "Root"), QName("something_else", "IncludedType"))
+        )
+
+        assertThat(typeDb.getType(QName("something_else", "IncludedType"))).isNotNull
     }
 
     @Test

@@ -33,6 +33,9 @@ class SchemaParser {
             if (extension is Include) {
                 val pathOfOtherXsd = File(schemaFile).parent + File.separator + extension.schemaLocation
                 knownTypes.addEntries(readAllElementsAndTypesInFile(pathOfOtherXsd, thisSchemaTargetNamespace))
+            } else if(extension is Import) {
+                val pathOfOtherXsd = File(schemaFile).parent + File.separator + extension.schemaLocation
+                knownTypes.addEntries(readAllElementsAndTypesInFile(pathOfOtherXsd, extension.namespace))
             }
         }
 

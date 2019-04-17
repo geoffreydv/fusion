@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<xs:schema
+        targetNamespace="BowShikaWow"
+        xmlns:so="something_else"
+        xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:import namespace="something_else" schemaLocation="include_me.xsd" />
+    <xs:element name="Root" type="so:IncludedType" />
+
+</xs:schema>
