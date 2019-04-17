@@ -23,10 +23,23 @@ interface PossiblePartOfGroup
 
 // Maybe add "top-level" element?
 
-data class Element(val name: String,
-                   val type: QName) : PossiblePartOfGroup
+interface ElementBase {
+    fun getType(): QName
+}
 
-data class TopLevelElement(val name: QName, val type: QName) : Indexable {
+data class Element(val name: String,
+                   val elementType: QName) : PossiblePartOfGroup, ElementBase {
+
+    override fun getType(): QName {
+        return elementType
+    }
+}
+
+data class TopLevelElement(val name: QName, val elementType: QName) : Indexable, ElementBase {
+
+    override fun getType(): QName {
+        return elementType
+    }
 
     override fun getQName(): QName {
         return name
@@ -57,7 +70,7 @@ data class SimpleType(private val name: QName,
 }
 
 data class ComplexType(val name: QName,
-                       val fields: List<Element>) : PossiblePartOfGroup, Indexable {
+                       val fields: List<Element>) : Indexable {
 
     override fun getContentType(): ContentType {
         return DEFINITION
@@ -91,11 +104,12 @@ class TypeDb(entries: Collection<Indexable> = listOf()) {
     }
 
     fun getElement(name: QName): TopLevelElement? {
-        return getEntry(name, ELEMENT) as TopLevelElement
+        val found = getEntry(name, ELEMENT) ?: return null
+        return found as TopLevelElement
     }
 
-    fun getType(name: QName): ComplexType? {
-        return getEntry(name, ELEMENT) as ComplexType
+    fun getType(name: QName): Indexable? {
+        return getEntry(name, DEFINITION) ?: return null
     }
 
     fun getEntry(name: QName, type: ContentType = DEFINITION): Indexable? {

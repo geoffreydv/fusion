@@ -41,14 +41,14 @@ class ParsingTests {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/custom_simple_type_variations.xsd")
 
-        Assertions.assertThat(typeDb.getEntry(QName("", "MinLengthNumber"))).isEqualTo(SimpleType(
+        Assertions.assertThat(typeDb.getType(QName("", "MinLengthNumber"))).isEqualTo(SimpleType(
                 QName("", "MinLengthNumber"),
                 QName("http://www.w3.org/2001/XMLSchema", "int"),
                 listOf(
                         MinLengthRestriction(10)
                 )))
 
-        Assertions.assertThat(typeDb.getEntry(QName("", "Enum"))).isEqualTo(SimpleType(
+        Assertions.assertThat(typeDb.getType(QName("", "Enum"))).isEqualTo(SimpleType(
                 QName("", "Enum"),
                 QName("http://www.w3.org/2001/XMLSchema", "string"),
                 listOf(
