@@ -61,24 +61,22 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         }
 
         if (typeLookup is SimpleField) {
-            when (typeLookup) {
-                is StringField -> {
-                    val renderedValue = doc.createTextNode("string")
-                    renderedElement.appendChild(renderedValue)
-                }
-                is RegexField -> {
-
-                    val valueToRender = renderingConfig.getRegexValueForType(elementType)
-                            ?: ("Regex for type " + elementType + ", pattern: " + typeLookup.pattern)
-                    val renderedValue = doc.createTextNode(valueToRender)
-                    renderedElement.appendChild(renderedValue)
-                }
-                is NumberField -> renderedElement.appendChild(doc.createTextNode("1"))
-                else -> throw IllegalArgumentException("This type is known but I have no clue how to render it. The field is a ${typeLookup.javaClass}, the original type is: $elementType")
-            }
-
+            renderedElement.appendChild(doc.createTextNode(generateExampleValueForSimpleType(typeLookup, renderingConfig)))
             return renderedElement
         }
+
         throw IllegalArgumentException("How did I even get here?")
+    }
+
+    private fun generateExampleValueForSimpleType(
+            field: SimpleField,
+            renderingConfig: RenderingConfig): String {
+        return when (field) {
+            is StringField -> "string"
+            is RegexField -> renderingConfig.getRegexValueForType(field.getQName()) ?: ("Regex for type " + field.getQName() + ", pattern: " + field.pattern)
+            is NumberField -> "1"
+            is EnumField -> field.possibleValues[0]
+            else -> throw IllegalArgumentException("This type is known but I have no clue how to render it. The field is a ${field.javaClass}, the original type is: ${field.getQName()}")
+        }
     }
 }
