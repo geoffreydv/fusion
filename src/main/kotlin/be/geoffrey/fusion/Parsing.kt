@@ -8,7 +8,6 @@ import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
 
-
 class SchemaParser {
 
     fun readAllElementsAndTypesInFile(schemaFile: String,
@@ -34,7 +33,7 @@ class SchemaParser {
         for (item in schema.simpleTypeOrComplexTypeOrGroup) {
 
             if (item is TopLevelComplexType) {
-                knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace))
+                knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
             } else if (item is SimpleType) {
                 knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace))
             } else if (item is org.w3._2001.xmlschema.TopLevelElement) {
@@ -45,28 +44,29 @@ class SchemaParser {
                 if (item.type != null) {
                     knownBlocks.add(TopLevelElement(elementName, determineNamespace(thisSchemaTargetNamespace, item.type)))
                 } else {
-                    // Look inside this element for a complexType
-                    if (item.complexType != null) {
-                        // Give it a random name
-                        val customRandomName = item.name + UUID.randomUUID().toString()
-                        val generatedType = parseComplexType(item.complexType, thisSchemaTargetNamespace, customRandomName)
-                        knownBlocks.add(generatedType)
-                        // Save the element with that type...
-
-                        knownBlocks.add(TopLevelElement(elementName, generatedType.name))
-                    } else if (item.simpleType != null) {
-                        // Give it a random name
-                        val customRandomName = item.name + UUID.randomUUID().toString()
-                        val generatedType = parseSimpleType(item.simpleType, thisSchemaTargetNamespace, customRandomName)
-                        knownBlocks.add(generatedType)
-
-                        knownBlocks.add(TopLevelElement(elementName, generatedType.getQName()))
-                    }
+                    val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(item, thisSchemaTargetNamespace, knownBlocks)
+                    knownBlocks.add(dynamicStructure)
+                    knownBlocks.add(TopLevelElement(elementName, dynamicStructure.getQName()))
                 }
             }
         }
         return knownBlocks
     }
+
+    private fun extractDynamicStructureFromInlineTypeOfElement(
+            item: Element,
+            thisSchemaTargetNamespace: String,
+            knownBlocks: KnownBuildingBlocks
+    ): Structure {
+        if (item.complexType != null) {
+            return parseComplexType(item.complexType, thisSchemaTargetNamespace, generateRandomStructureName(item), knownBlocks = knownBlocks)
+        } else if (item.simpleType != null) {
+            return parseSimpleType(item.simpleType, thisSchemaTargetNamespace, generateRandomStructureName(item))
+        }
+        throw IllegalArgumentException("Sorry, I have no clue how to parse this...")
+    }
+
+    private fun generateRandomStructureName(item: Element) = item.name + UUID.randomUUID().toString()
 
     private fun parseSimpleType(
             item: SimpleType,
@@ -85,7 +85,6 @@ class SchemaParser {
         if (baseSimpleType.namespaceURI == XMLNS) {
             if (baseSimpleType.localPart == "string") {
                 val enumRestrictions = findEnumRestrictions(item.restriction.facets)
-
                 if (enumRestrictions.isNotEmpty()) {
                     return EnumField(nameOfThisType, enumRestrictions)
                 } else {
@@ -113,22 +112,27 @@ class SchemaParser {
 
     private fun parseComplexType(item: ComplexType,
                                  thisSchemaTargetNamespace: String,
-                                 customName: String? = null): GroupOfSimpleFields {
+                                 customName: String? = null,
+                                 knownBlocks: KnownBuildingBlocks): GroupOfSimpleFields {
 
         val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
         if (item.sequence != null) {
             for (sequenceItem in item.sequence.particle) {
                 if (sequenceItem is JAXBElement<*>) {
-
                     val actualEntry = sequenceItem.value
+
                     if (actualEntry is Element) {
-                        val referencedType = determineNamespace(thisSchemaTargetNamespace, actualEntry.type!!)
-                        elementsInComplexType.add(Element(actualEntry.name, referencedType))
+                        if (actualEntry.type != null) {
+                            elementsInComplexType.add(Element(actualEntry.name, determineNamespace(thisSchemaTargetNamespace, actualEntry.type)))
+                        } else {
+                            val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(actualEntry, thisSchemaTargetNamespace, knownBlocks)
+                            knownBlocks.add(dynamicStructure)
+                            elementsInComplexType.add(Element(actualEntry.name, dynamicStructure.getQName()))
+                        }
                     }
                 }
             }
         }
-
         return GroupOfSimpleFields(QName(thisSchemaTargetNamespace, customName ?: item.name!!), elementsInComplexType)
     }
 

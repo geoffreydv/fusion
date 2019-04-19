@@ -6,22 +6,6 @@ import org.junit.Test
 
 class ParsingTests {
 
-    /*
-
-    TODO list
-
-    - [ ] Inheritance
-    - [ ] Internal complex type should be added as a complex type with a random name
-    - [ ] Add all possible restrictions
-    - [ ] formDefault test
-    - [ ] test xmlns with single quotes
-    - [ ] Make sure includes don't recurse
-    - [ ] Detect include cases that don't work (different namespaces in the files)
-    - [ ] Include w/ directory traversal (recursion)
-    - [ ] Solve target namespace vs xmlns
-
-     */
-
     @Test
     fun loadingOneComplexTypeWithSomeBasicFields() {
 
@@ -137,5 +121,19 @@ class ParsingTests {
 
         Assertions.assertThat(typeDb.getElement(QName("", "Van")))
                 .isEqualTo(TopLevelElement(QName("", "Van"), inlineType!!.getQName()))
+    }
+
+    @Test
+    fun testParsingElementWithInlineDefinedSimpleType2() {
+
+        val parser = SchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_inline_nesting.xsd")
+
+        val generatedType = typeDb.getStructureByPartOfName("", "Van")
+        assertThat(generatedType).isNotNull
+        assertThat(typeDb.getStructure(QName("", "Wrapper")))
+                .isEqualTo(GroupOfSimpleFields(QName("", "Wrapper"), listOf(
+                        Element("Van", generatedType!!.getQName())
+                )))
     }
 }
