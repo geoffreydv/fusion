@@ -18,7 +18,16 @@ fun main(args: Array<String>) {
     val elementToRender = QName("http://webservice.geefopdrachtwsdienst-02_00.edelta.mow.vlaanderen.be", "GeefOpdrachtWsResponse")
     val element = knowledge.getElement(elementToRender)!!
 
-    val asXml = XmlRenderer(knowledge).render(element)
+    val renderingConfig = RenderingConfig(listOf(
+            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "VersieType"), "00.00.0000"),
+            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "DatumType"), ",111-10-03"),
+            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "INSZType"), "01010101012"),
+            RegexValueForType(QName("http://generiek-edelta-common.edelta.mow.vlaanderen.be", "UuidType"), "aaaaaaaa-1111-2222-3333-abcdefghijkl"),
+            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "TijdType"), "29:01"),
+            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingIdentificatieType"), "1"),
+            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingOorsprongType"), "2")
+    ))
+    val asXml = XmlRenderer(knowledge).render(element, renderingConfig)
 
     print(asXml)
 
