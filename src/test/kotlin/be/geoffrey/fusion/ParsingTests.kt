@@ -26,9 +26,12 @@ class ParsingTests {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/custom_simple_type_variations.xsd")
 
-        Assertions.assertThat(typeDb.getStructure(QName("", "Enum"))).isEqualTo(EnumField(
+        assertThat(typeDb.getStructure(QName("", "Enum"))).isEqualTo(EnumField(
                 QName("", "Enum"),
                 listOf("Audi", "BMW")))
+
+        assertThat(typeDb.getStructure(QName("", "VersionNumber"))).isEqualTo(RegexField(
+                QName("", "VersionNumber"), "\\d{2}\\.\\d{2}"))
     }
 
     @Test

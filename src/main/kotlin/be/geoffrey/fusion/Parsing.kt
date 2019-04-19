@@ -75,10 +75,7 @@ class SchemaParser {
     ): SimpleField {
 
         val baseSimpleType = item.restriction.base
-
-        if (baseSimpleType == null) {
-            throw IllegalArgumentException("I have no clue how to parse this, sorry :(");
-        }
+                ?: throw IllegalArgumentException("I have no clue how to parse this, sorry :(")
 
         val nameOfThisType = QName(thisSchemaTargetNamespace, nameOverride ?: item.name)
 
@@ -87,23 +84,38 @@ class SchemaParser {
                 val enumRestrictions = findEnumRestrictions(item.restriction.facets)
                 if (enumRestrictions.isNotEmpty()) {
                     return EnumField(nameOfThisType, enumRestrictions)
-                } else {
-                    return StringField(nameOfThisType)
                 }
+
+                val pattern: String? = findPatternRestriction(item.restriction.facets)
+                if (pattern != null) {
+                    return RegexField(nameOfThisType, pattern)
+                }
+
+                return StringField(nameOfThisType)
             }
         }
 
         return UnknownField(nameOfThisType, QName(baseSimpleType.namespaceURI, baseSimpleType.localPart))
     }
 
-    private fun findEnumRestrictions(facets: MutableList<Any>): MutableList<String> {
+    private fun findPatternRestriction(facets: List<Any>): String? {
+
+        for (facetJaxbElement in facets) {
+            if (facetJaxbElement is Pattern) {
+                return facetJaxbElement.value
+            }
+        }
+
+        return null;
+    }
+
+    private fun findEnumRestrictions(facets: List<Any>): MutableList<String> {
 
         val enumRestrictions = mutableListOf<String>()
 
         for (facetJaxbElement in facets) {
             if (facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "enumeration") {
-                val value = (facetJaxbElement.value as Facet).value
-                enumRestrictions.add(value)
+                enumRestrictions.add((facetJaxbElement.value as Facet).value)
             }
         }
 

@@ -22,6 +22,10 @@ data class TopLevelElement(val name: QName, val elementType: QName) : ElementBas
     }
 }
 
+data class RegexField(private val name: QName,
+                      val pattern: String) : SimpleField(name) {
+}
+
 data class NumberField(private val name: QName) : SimpleField(name)
 
 data class StringField(private val name: QName) : SimpleField(name)
@@ -96,9 +100,5 @@ open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf
         }
 
         return null
-    }
-
-    fun structureCount(): Int {
-        return knownStructures.size
     }
 }
