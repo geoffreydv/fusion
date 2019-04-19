@@ -7,10 +7,16 @@ class XmlRenderingTests {
 
     @Test
     fun testRenderingAString() {
-
         val blocks = XmlBuildingBlocks()
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "string")))
         assertThat(output).isEqualTo("""<MyName xmlns="shwoep">string</MyName>""")
+    }
+
+    @Test
+    fun testRenderingAnInt() {
+        val blocks = XmlBuildingBlocks()
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "int")))
+        assertThat(output).isEqualTo("""<MyName xmlns="shwoep">1</MyName>""")
     }
 
     @Test

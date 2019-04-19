@@ -53,7 +53,10 @@ data class GroupOfSimpleFields(val name: QName,
 
 const val XMLNS = "http://www.w3.org/2001/XMLSchema"
 
-class XmlBuildingBlocks : KnownBuildingBlocks(listOf(StringField(QName(XMLNS, "string"))))
+class XmlBuildingBlocks : KnownBuildingBlocks(listOf(
+        StringField(QName(XMLNS, "string")),
+        NumberField(QName(XMLNS, "int")))
+)
 
 open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf()) {
 
