@@ -28,6 +28,8 @@ data class RegexField(private val name: QName,
 
 data class NumberField(private val name: QName) : SimpleField(name)
 
+data class BooleanField(private val name: QName) : SimpleField(name)
+
 data class StringField(private val name: QName) : SimpleField(name)
 
 data class UnknownField(private val name: QName, private val type: QName) : SimpleField(name)
@@ -55,6 +57,7 @@ const val XMLNS = "http://www.w3.org/2001/XMLSchema"
 
 class XmlBuildingBlocks : KnownBuildingBlocks(listOf(
         StringField(QName(XMLNS, "string")),
+        BooleanField(QName(XMLNS, "boolean")),
         NumberField(QName(XMLNS, "int")))
 )
 

@@ -10,8 +10,7 @@ import javax.xml.bind.JAXBElement
 
 class SchemaParser {
 
-    fun readAllElementsAndTypesInFile(schemaFile: String,
-                                      targetNamespaceOverride: String? = null): KnownBuildingBlocks {
+    fun readAllElementsAndTypesInFile(schemaFile: String, targetNamespaceOverride: String? = null): KnownBuildingBlocks {
 
         val knownBlocks = XmlBuildingBlocks()
 
