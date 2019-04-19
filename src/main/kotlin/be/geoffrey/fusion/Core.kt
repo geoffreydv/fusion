@@ -1,27 +1,8 @@
 package be.geoffrey.fusion
 
-import be.geoffrey.fusion.ContentType.DEFINITION
-import be.geoffrey.fusion.ContentType.ELEMENT
-import java.util.*
-
-private const val NAMESPACE_INDICATION = "namespace_definition"
-
 data class QName(val namespace: String, val name: String)
 
-enum class ContentType {
-    ELEMENT,
-    DEFINITION
-}
-
-interface Indexable {
-    fun getQName(): QName
-
-    fun getContentType(): ContentType
-}
-
 interface PossiblePartOfGroup
-
-// Maybe add "top-level" element?
 
 interface ElementBase {
     fun getType(): QName
@@ -35,99 +16,73 @@ data class Element(val name: String,
     }
 }
 
-data class TopLevelElement(val name: QName, val elementType: QName) : Indexable, ElementBase {
-
+data class TopLevelElement(val name: QName, val elementType: QName) : ElementBase {
     override fun getType(): QName {
         return elementType
     }
-
-    override fun getQName(): QName {
-        return name
-    }
-
-    override fun getContentType(): ContentType {
-        return ELEMENT
-    }
 }
 
-interface Restriction
+data class NumberField(private val name: QName) : SimpleField(name)
 
-data class MinLengthRestriction(val minLength: Int) : Restriction
+data class StringField(private val name: QName) : SimpleField(name)
 
-data class EnumRestriction(val value: String) : Restriction
+data class EnumField(private val name: QName, val possibleValues: List<String>) : SimpleField(name)
 
-data class SimpleType(private val name: QName,
-                      private val baseType: QName,
-                      val restrictions: List<Restriction>) : Indexable {
+interface Structure {
+    fun getQName(): QName
+}
 
-    override fun getContentType(): ContentType {
-        return DEFINITION
-    }
-
+abstract class SimpleField(private val name: QName) : Structure {
     override fun getQName(): QName {
         return name
     }
 }
 
-data class ComplexType(val name: QName,
-                       val fields: List<Element>) : Indexable {
-
-    override fun getContentType(): ContentType {
-        return DEFINITION
-    }
-
+data class GroupOfSimpleFields(val name: QName,
+                               val fields: List<Element>) : Structure {
     override fun getQName(): QName {
         return name
     }
 }
 
-class TypeDb(entries: Collection<Indexable> = listOf()) {
+const val XMLNS = "http://www.w3.org/2001/XMLSchema"
 
-    private val knownTypesAsMap = hashMapOf<ContentType, HashMap<QName, Indexable>>(
-            Pair(ELEMENT, hashMapOf()),
-            Pair(DEFINITION, hashMapOf()))
+class XmlBuildingBlocks : KnownBuildingBlocks(listOf(StringField(QName(XMLNS, "string"))))
+
+open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf()) {
+
+    private val knownStructures = hashMapOf<QName, Structure>()
+    private val knownElements = hashMapOf<QName, TopLevelElement>()
 
     init {
-        addEntries(entries)
-    }
-
-    fun addEntries(entries: Collection<Indexable>) {
-        for (entry in entries) {
-            knownTypesAsMap[entry.getContentType()]!![entry.getQName()] = entry
+        for (defaultStructure in defaultStructures) {
+            add(defaultStructure)
         }
     }
 
-    fun addEntries(other: TypeDb) {
-        for (value in other.knownTypesAsMap.values) {
-            addEntries(value.values)
+    fun add(structure: Structure) {
+        knownStructures[structure.getQName()] = structure
+    }
+
+    fun add(element: TopLevelElement) {
+        knownElements[element.name] = element
+    }
+
+    fun addAllOfOther(other: KnownBuildingBlocks) {
+        for (structure in other.knownStructures.values) {
+            add(structure)
+        }
+
+        for (element in other.knownElements.values) {
+            add(element)
         }
     }
 
     fun getElement(name: QName): TopLevelElement? {
-        val found = getEntry(name, ELEMENT) ?: return null
-        return found as TopLevelElement
+        return knownElements[name]
     }
 
-    fun getType(name: QName): Indexable? {
-        return getEntry(name, DEFINITION) ?: return null
-    }
-
-    fun getEntry(name: QName, type: ContentType = DEFINITION): Indexable? {
-        return knownTypesAsMap[type]!![name]
-    }
-
-    fun getEntryByPartOfName(namespace: String,
-                             partOfName: String,
-                             contentType: ContentType): List<Indexable> {
-
-        val results = mutableListOf<Indexable>()
-
-        knownTypesAsMap[contentType]!!.forEach { (_, type) ->
-            if (type.getQName().namespace == namespace && type.getQName().name.contains(partOfName)) {
-                results.add(type)
-            }
-        }
-
-        return results
+    fun getStructure(name: QName): Structure? {
+        return knownStructures[name]
     }
 }

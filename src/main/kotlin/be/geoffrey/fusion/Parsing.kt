@@ -8,70 +8,58 @@ import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
 
+
 class SchemaParser {
 
     fun readAllElementsAndTypesInFile(schemaFile: String,
-                                      targetNamespaceOverride: String? = null): TypeDb {
+                                      targetNamespaceOverride: String? = null): KnownBuildingBlocks {
 
-        val knownTypes = TypeDb()
+        val knownBlocks = XmlBuildingBlocks()
 
         val asString = File(schemaFile).readText()
-//        var replacedForInterpreting = asString.replace(Regex("xmlns(:?)(.*?)=\"(.*?)\"")) {
-//            "${it.groupValues[0]} xmlns_hack${it.groupValues[1]}${it.groupValues[2]}=\"${it.groupValues[3]}\""
-//        }
-//        replacedForInterpreting = replacedForInterpreting.replaceFirst("schema", "schema xmlns:xmlns_hack=\"$NAMESPACE_INDICATION\"")
         val sw = StringReader(asString)
         val schema = JAXB.unmarshal(sw, Schema::class.java)
 
-//        val knownNamespaces = extractNamespaces(schema)
-
         val thisSchemaTargetNamespace = determineTargetNamespace(schema, targetNamespaceOverride)
-
-        val entriesInThisFile = mutableListOf<Indexable>()
 
         for (extension in schema.includeOrImportOrRedefine) {
             if (extension is Include) {
                 val pathOfOtherXsd = File(schemaFile).parent + File.separator + extension.schemaLocation
-                knownTypes.addEntries(readAllElementsAndTypesInFile(pathOfOtherXsd, thisSchemaTargetNamespace))
-            } else if(extension is Import) {
+                knownBlocks.addAllOfOther(readAllElementsAndTypesInFile(pathOfOtherXsd, thisSchemaTargetNamespace))
+            } else if (extension is Import) {
                 val pathOfOtherXsd = File(schemaFile).parent + File.separator + extension.schemaLocation
-                knownTypes.addEntries(readAllElementsAndTypesInFile(pathOfOtherXsd, extension.namespace))
+                knownBlocks.addAllOfOther(readAllElementsAndTypesInFile(pathOfOtherXsd, extension.namespace))
             }
         }
 
         for (item in schema.simpleTypeOrComplexTypeOrGroup) {
+
             if (item is TopLevelComplexType) {
-                entriesInThisFile.add(parseComplexType(item, thisSchemaTargetNamespace))
-            } else if (item is org.w3._2001.xmlschema.SimpleType) {
+                knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace))
+            } else if (item is SimpleType) {
 
-                val name = item.name
-                val base = item.restriction.base
+                if (item.restriction.base.namespaceURI == XMLNS) {
 
-                val restrictions = mutableListOf<Restriction>()
+                    val nameOfThisType = QName(thisSchemaTargetNamespace, item.name)
 
-                for (facetJaxbElement in item.restriction.facets) {
-                    if (facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "enumeration") {
-                        val value = (facetJaxbElement.value as Facet).value
-                        restrictions.add(EnumRestriction(value))
-                    } else if (facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "minLength") {
-                        val minLength = (facetJaxbElement.value as Facet).value
-                        restrictions.add(MinLengthRestriction(Integer.valueOf(minLength)))
+                    if (item.restriction.base.localPart == "string") {
+
+                        val enumRestrictions = findEnumRestrictions(item.restriction.facets)
+
+                        if (enumRestrictions.isNotEmpty()) {
+                            knownBlocks.add(EnumField(nameOfThisType, enumRestrictions))
+                        } else {
+                            knownBlocks.add(StringField(nameOfThisType))
+                        }
                     }
                 }
-
-                entriesInThisFile.add(
-                        SimpleType(QName(thisSchemaTargetNamespace, name),
-                                QName("http://www.w3.org/2001/XMLSchema", base.localPart),
-                                restrictions))
-
             } else if (item is org.w3._2001.xmlschema.TopLevelElement) {
 
-                // IF the item has no type then it defines its type inside this element... Handle that!
-
+                // If the item has no type then it defines its type inside this element... Handle that!
                 val elementName = QName(thisSchemaTargetNamespace, item.name)
 
                 if (item.type != null) {
-                    entriesInThisFile.add(TopLevelElement(elementName, determineNamespace(thisSchemaTargetNamespace, item.type)))
+                    knownBlocks.add(TopLevelElement(elementName, determineNamespace(thisSchemaTargetNamespace, item.type)))
                 } else {
                     // Look inside this element for a complexType
                     if (item.complexType != null) {
@@ -79,22 +67,34 @@ class SchemaParser {
                         // Give it a random name
                         val randomName = item.name + UUID.randomUUID().toString()
                         val generatedType = parseComplexType(item.complexType, thisSchemaTargetNamespace, randomName)
-                        entriesInThisFile.add(generatedType)
+                        knownBlocks.add(generatedType)
 
                         // Save the element with that type...
-                        entriesInThisFile.add(TopLevelElement(elementName, generatedType.name))
+                        knownBlocks.add(TopLevelElement(elementName, generatedType.name))
                     }
                 }
             }
         }
-
-        knownTypes.addEntries(entriesInThisFile)
-        return knownTypes
+        return knownBlocks
     }
 
-    private fun parseComplexType(item: org.w3._2001.xmlschema.ComplexType,
+    private fun findEnumRestrictions(facets: MutableList<Any>): MutableList<String> {
+
+        val enumRestrictions = mutableListOf<String>()
+
+        for (facetJaxbElement in facets) {
+            if (facetJaxbElement is JAXBElement<*> && facetJaxbElement.name.localPart == "enumeration") {
+                val value = (facetJaxbElement.value as Facet).value
+                enumRestrictions.add(value)
+            }
+        }
+
+        return enumRestrictions
+    }
+
+    private fun parseComplexType(item: ComplexType,
                                  thisSchemaTargetNamespace: String,
-                                 customName: String? = null): ComplexType {
+                                 customName: String? = null): GroupOfSimpleFields {
 
         val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
         if (item.sequence != null) {
@@ -110,7 +110,7 @@ class SchemaParser {
             }
         }
 
-        return ComplexType(QName(thisSchemaTargetNamespace, customName ?: item.name!!), elementsInComplexType)
+        return GroupOfSimpleFields(QName(thisSchemaTargetNamespace, customName ?: item.name!!), elementsInComplexType)
     }
 
     private fun determineNamespace(thisSchemaTargetNamespace: String, originalQName: javax.xml.namespace.QName): QName {
@@ -125,19 +125,4 @@ class SchemaParser {
 
         return schema.targetNamespace ?: ""
     }
-
-//    private fun extractNamespaces(schema: Schema): HashMap<String, String> {
-//        val foundNamespaces = hashMapOf<String, String>()
-//        schema.otherAttributes.forEach { name, value ->
-//            if (name.namespaceURI == NAMESPACE_INDICATION) {
-//                foundNamespaces[name!!.localPart] = value
-//            } else if (name.localPart == "xmlns_hack") {
-//                foundNamespaces[""] = value
-//            }
-//        }
-//
-//        foundNamespaces.putIfAbsent("", "")
-//        return foundNamespaces
-//    }
 }
-

@@ -11,57 +11,27 @@ import org.junit.Test
 class XmlRenderingTests {
 
     @Test
-    fun testRenderingASimpleType() {
+    fun testRenderingAString() {
 
-        val elementToRender = TopLevelElement(
-                QName("shwoep", "MyName"),
-                QName("http://www.w3.org/2001/XMLSchema", "string"))
-
-        val typdb = TypeDb(listOf(elementToRender))
-
-        val renderingOptions = mapOf(
-                Pair(QName("http://www.w3.org/2001/XMLSchema", "string"), { _: QName -> "Goeiendag!" })
-        )
-
-        val output = XmlRenderer(typdb).render(elementToRender, renderingOptions)
-
-        assertThat(output).isEqualTo("""<MyName xmlns="shwoep">Goeiendag!</MyName>""")
-    }
-
-    @Test
-    fun testRenderingASimpleTypeWithNoRendering() {
-
-        val elementToRender = TopLevelElement(
-                QName("shwoep", "MyName"),
-                QName("http://www.w3.org/2001/XMLSchema", "string"))
-
-        val typdb = TypeDb(listOf(elementToRender))
-
-        val output = XmlRenderer(typdb).render(elementToRender, hashMapOf())
-
-        assertThat(output).isEqualTo("""<MyName xmlns="shwoep"/>""")
+        val blocks = XmlBuildingBlocks()
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "string")))
+        assertThat(output).isEqualTo("""<MyName xmlns="shwoep">string</MyName>""")
     }
 
     @Test
     fun testComplexTypeWithChildren() {
 
-        val elementToRender = TopLevelElement(
-                QName("shwoep", "MyName"),
-                QName("shwoep", "SomeType"))
-
-        val structure = ComplexType(QName("shwoep", "SomeType"), listOf(
+        val blocks = XmlBuildingBlocks()
+        blocks.add(GroupOfSimpleFields(QName("shwoep", "SomeType"), listOf(
                 Element("FieldOne", QName("http://www.w3.org/2001/XMLSchema", "string")),
                 Element("FieldTwo", QName("http://www.w3.org/2001/XMLSchema", "string"))
-        ))
+        )))
 
-        val typdb = TypeDb(listOf(elementToRender, structure))
-
-        val renderingOptions = mapOf(
-                Pair(QName("http://www.w3.org/2001/XMLSchema", "string"), { _: QName -> "Goeiendag!" })
-        )
-
-        val output = XmlRenderer(typdb).render(elementToRender, renderingOptions)
-
-        assertThat(output).isEqualTo("""<MyName xmlns="shwoep"/>""")
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
+        assertThat(output).isEqualToIgnoringWhitespace("""
+            <MyName xmlns="shwoep">
+                <FieldOne xmlns="">string</FieldOne>
+                <FieldTwo xmlns="">string</FieldTwo>
+            </MyName>""".trimIndent())
     }
 }
