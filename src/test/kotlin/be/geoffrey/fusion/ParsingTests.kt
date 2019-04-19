@@ -119,12 +119,23 @@ class ParsingTests {
         val parser = SchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_complex_type.xsd")
 
-//        val foundTypes = typeDb.getStructure(QName("foobar", "FoodBar"))
-//        Assertions.assertThat(foundTypes).hasSize(1)
-//
-//        val autoCreatedType = foundTypes[0]
-//
-//        Assertions.assertThat(typeDb.getEntry(QName("foobar", "FoodBar"), ContentType.ELEMENT))
-//                .isEqualTo(TopLevelElement(QName("foobar", "FoodBar"), autoCreatedType.getQName()))
+        val inlineType = typeDb.getStructureByPartOfName("foobar", "FoodBar")
+        assertThat(inlineType).isNotNull
+
+        Assertions.assertThat(typeDb.getElement(QName("foobar", "FoodBar")))
+                .isEqualTo(TopLevelElement(QName("foobar", "FoodBar"), inlineType!!.getQName()))
+    }
+
+    @Test
+    fun testParsingElementWithInlineDefinedSimpleType() {
+
+        val parser = SchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_inline_simple_type.xsd")
+
+        val inlineType = typeDb.getStructureByPartOfName("", "Van")
+        assertThat(inlineType).isNotNull
+
+        Assertions.assertThat(typeDb.getElement(QName("", "Van")))
+                .isEqualTo(TopLevelElement(QName("", "Van"), inlineType!!.getQName()))
     }
 }

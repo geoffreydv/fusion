@@ -26,6 +26,8 @@ data class NumberField(private val name: QName) : SimpleField(name)
 
 data class StringField(private val name: QName) : SimpleField(name)
 
+data class UnknownField(private val name: QName, private val type: QName) : SimpleField(name)
+
 data class EnumField(private val name: QName, val possibleValues: List<String>) : SimpleField(name)
 
 interface Structure {
@@ -84,5 +86,19 @@ open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf
 
     fun getStructure(name: QName): Structure? {
         return knownStructures[name]
+    }
+
+    fun getStructureByPartOfName(namespace: String, partOfName: String): Structure? {
+        knownStructures.forEach { (qn, structure) ->
+            if (qn.namespace == namespace && qn.name.contains(partOfName)) {
+                return structure
+            }
+        }
+
+        return null
+    }
+
+    fun structureCount(): Int {
+        return knownStructures.size
     }
 }

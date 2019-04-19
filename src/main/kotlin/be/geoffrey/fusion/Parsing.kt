@@ -31,28 +31,12 @@ class SchemaParser {
                 knownBlocks.addAllOfOther(readAllElementsAndTypesInFile(pathOfOtherXsd, extension.namespace))
             }
         }
-
         for (item in schema.simpleTypeOrComplexTypeOrGroup) {
 
             if (item is TopLevelComplexType) {
                 knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace))
             } else if (item is SimpleType) {
-
-                if (item.restriction.base.namespaceURI == XMLNS) {
-
-                    val nameOfThisType = QName(thisSchemaTargetNamespace, item.name)
-
-                    if (item.restriction.base.localPart == "string") {
-
-                        val enumRestrictions = findEnumRestrictions(item.restriction.facets)
-
-                        if (enumRestrictions.isNotEmpty()) {
-                            knownBlocks.add(EnumField(nameOfThisType, enumRestrictions))
-                        } else {
-                            knownBlocks.add(StringField(nameOfThisType))
-                        }
-                    }
-                }
+                knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace))
             } else if (item is org.w3._2001.xmlschema.TopLevelElement) {
 
                 // If the item has no type then it defines its type inside this element... Handle that!
@@ -63,19 +47,54 @@ class SchemaParser {
                 } else {
                     // Look inside this element for a complexType
                     if (item.complexType != null) {
-
                         // Give it a random name
-                        val randomName = item.name + UUID.randomUUID().toString()
-                        val generatedType = parseComplexType(item.complexType, thisSchemaTargetNamespace, randomName)
+                        val customRandomName = item.name + UUID.randomUUID().toString()
+                        val generatedType = parseComplexType(item.complexType, thisSchemaTargetNamespace, customRandomName)
+                        knownBlocks.add(generatedType)
+                        // Save the element with that type...
+
+                        knownBlocks.add(TopLevelElement(elementName, generatedType.name))
+                    } else if (item.simpleType != null) {
+                        // Give it a random name
+                        val customRandomName = item.name + UUID.randomUUID().toString()
+                        val generatedType = parseSimpleType(item.simpleType, thisSchemaTargetNamespace, customRandomName)
                         knownBlocks.add(generatedType)
 
-                        // Save the element with that type...
-                        knownBlocks.add(TopLevelElement(elementName, generatedType.name))
+                        knownBlocks.add(TopLevelElement(elementName, generatedType.getQName()))
                     }
                 }
             }
         }
         return knownBlocks
+    }
+
+    private fun parseSimpleType(
+            item: SimpleType,
+            thisSchemaTargetNamespace: String,
+            nameOverride: String? = null
+    ): SimpleField {
+
+        val baseSimpleType = item.restriction.base
+
+        if (baseSimpleType == null) {
+            throw IllegalArgumentException("I have no clue how to parse this, sorry :(");
+        }
+
+        val nameOfThisType = QName(thisSchemaTargetNamespace, nameOverride ?: item.name)
+
+        if (baseSimpleType.namespaceURI == XMLNS) {
+            if (baseSimpleType.localPart == "string") {
+                val enumRestrictions = findEnumRestrictions(item.restriction.facets)
+
+                if (enumRestrictions.isNotEmpty()) {
+                    return EnumField(nameOfThisType, enumRestrictions)
+                } else {
+                    return StringField(nameOfThisType)
+                }
+            }
+        }
+
+        return UnknownField(nameOfThisType, QName(baseSimpleType.namespaceURI, baseSimpleType.localPart))
     }
 
     private fun findEnumRestrictions(facets: MutableList<Any>): MutableList<String> {

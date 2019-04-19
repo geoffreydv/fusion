@@ -1,35 +1,12 @@
 <?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
-    <xs:complexType name="PagineringType">
-        <xs:annotation>
-            <xs:documentation>Bepaalt de paginering van het zoekresultaat</xs:documentation>
-        </xs:annotation>
-        <xs:sequence>
-            <xs:element name="Van">
-                <xs:annotation>
-                    <xs:documentation>Het rangnummer (startent van 1) van het eerste object dat met het resultaat wordt
-                        teruggegeven
-                    </xs:documentation>
-                </xs:annotation>
-                <xs:simpleType>
-                    <xs:restriction base="xs:integer">
-                        <xs:minInclusive value="1"/>
-                    </xs:restriction>
-                </xs:simpleType>
-            </xs:element>
-            <xs:element name="TotEnMet">
-                <xs:annotation>
-                    <xs:documentation>Het rangnummer van het laatste object dat met het resultaat wordt teruggegeven
-                    </xs:documentation>
-                </xs:annotation>
-                <xs:simpleType>
-                    <xs:restriction base="xs:integer">
-                        <xs:minInclusive value="1"/>
-                    </xs:restriction>
-                </xs:simpleType>
-            </xs:element>
-        </xs:sequence>
-    </xs:complexType>
+    <xs:element name="Van">
+        <xs:simpleType>
+            <xs:restriction base="xs:integer">
+                <xs:minInclusive value="1"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:element>
 
 </xs:schema>
