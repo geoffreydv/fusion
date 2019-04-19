@@ -12,12 +12,12 @@ import javax.xml.transform.stream.StreamResult
 
 
 interface Renderer {
-    fun render(element: TopLevelElement): String
+    fun render(element: TopLevelElement, renderingConfig: RenderingConfig = RenderingConfig()): String
 }
 
 class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
 
-    override fun render(element: TopLevelElement): String {
+    override fun render(element: TopLevelElement, renderingConfig: RenderingConfig): String {
 
         val icFactory = DocumentBuilderFactory.newInstance()
         icFactory.isNamespaceAware = true
@@ -26,8 +26,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         icBuilder = icFactory.newDocumentBuilder()
         val doc = icBuilder.newDocument()
 
-        val renderedElement = renderSingleElement(doc, element)
-        doc.appendChild(renderedElement)
+        doc.appendChild(renderSingleElement(doc, element, renderingConfig))
 
         val transformer = TransformerFactory.newInstance().newTransformer()
         transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
@@ -41,7 +40,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return sw.toString().trim()
     }
 
-    private fun renderSingleElement(doc: Document, element: ElementBase): Element? {
+    private fun renderSingleElement(doc: Document, element: ElementBase, renderingConfig: RenderingConfig): Element? {
 
         val renderedElement: Element = when (element) {
             is TopLevelElement -> doc.createElementNS(element.name.namespace, element.name.name)
@@ -51,20 +50,33 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
 
         val elementType = element.getType()
         val typeLookup = typeDb.getStructure(elementType)
+                ?: throw IllegalArgumentException("The required type for element ${renderedElement.tagName} was not found: $elementType")
 
-        if (typeLookup != null && typeLookup is GroupOfSimpleFields) {
+        if (typeLookup is GroupOfSimpleFields) {
             // Add all the child elements to this element
             for (field in typeLookup.fields) {
-                renderedElement.appendChild(renderSingleElement(doc, field))
+                renderedElement.appendChild(renderSingleElement(doc, field, renderingConfig))
             }
-        } else if (typeLookup != null && typeLookup is SimpleField) {
-            if (typeLookup is StringField) {
-                val textNode = doc.createTextNode("string")
-                renderedElement.appendChild(textNode)
-            }
+            return renderedElement;
         }
 
-        return renderedElement
-    }
+        if (typeLookup is SimpleField) {
+            if (typeLookup is StringField) {
+                val renderedValue = doc.createTextNode("string")
+                renderedElement.appendChild(renderedValue)
+            } else if (typeLookup is RegexField) {
 
+                val valueToRender = renderingConfig.getRegexValueForType(elementType)
+                        ?: ("Regex for type " + elementType + ", pattern: " + typeLookup.pattern)
+                val renderedValue = doc.createTextNode(valueToRender)
+                renderedElement.appendChild(renderedValue)
+            } else {
+                val textNode = doc.createTextNode("SORRY I HAVE NO CLUE HOW TO RENDER THIS TYPE: $elementType")
+                renderedElement.appendChild(textNode)
+            }
+
+            return renderedElement
+        }
+        throw IllegalArgumentException("How did I even get here?")
+    }
 }

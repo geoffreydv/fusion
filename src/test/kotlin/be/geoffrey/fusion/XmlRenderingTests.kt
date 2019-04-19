@@ -3,11 +3,6 @@ package be.geoffrey.fusion
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 
-/*
- TODO more
-    - meer variatie toevoegen in generatie
- */
-
 class XmlRenderingTests {
 
     @Test
@@ -16,6 +11,22 @@ class XmlRenderingTests {
         val blocks = XmlBuildingBlocks()
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "string")))
         assertThat(output).isEqualTo("""<MyName xmlns="shwoep">string</MyName>""")
+    }
+
+    @Test
+    fun testProvidingRegexValueRenderingChoice() {
+
+        val blocks = XmlBuildingBlocks()
+        val versienummerQName = QName("shwoep", "VersieNummer")
+
+        blocks.add(RegexField(versienummerQName, "\\d{2}"))
+
+        val output = XmlRenderer(blocks).render(
+                TopLevelElement(QName("shwoep", "Nummer"), versienummerQName),
+                RenderingConfig(listOf(RegexValueForType(versienummerQName, "38")))
+        )
+
+        assertThat(output).isEqualTo("""<Nummer xmlns="shwoep">38</Nummer>""")
     }
 
     @Test
