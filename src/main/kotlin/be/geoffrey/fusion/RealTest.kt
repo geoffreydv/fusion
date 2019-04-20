@@ -9,7 +9,7 @@ import javax.xml.transform.stream.StreamSource
 import javax.xml.validation.SchemaFactory
 
 fun main(args: Array<String>) {
-    val parser = SchemaParser()
+    val parser = XmlSchemaParser()
 
     val schemaLocation = "C:\\projects\\roots\\mow\\edelta-consumer-connector\\src\\main\\resources\\META-INF\\wsdl\\v20\\Aanbieden\\GeefOpdrachtDienst-05.00\\GeefOpdrachtWsResponse.xsd"
 

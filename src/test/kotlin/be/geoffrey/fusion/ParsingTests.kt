@@ -9,7 +9,7 @@ class ParsingTests {
     @Test
     fun loadingOneComplexTypeWithSomeBasicFields() {
 
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/one_simple_type_container.xsd")
         val type = typeDb.getStructure(QName("", "TypesTest"))
 
@@ -23,7 +23,7 @@ class ParsingTests {
     @Test
     fun loadingSimpleTypeVariations() {
 
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/custom_simple_type_variations.xsd")
 
         assertThat(typeDb.getStructure(QName("", "Enum"))).isEqualTo(EnumField(
@@ -37,7 +37,7 @@ class ParsingTests {
     @Test
     fun testNamespaceResolution() {
 
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/namespace_shizzle/defined_namespaces.xsd")
 
         Assertions.assertThat(typeDb.getStructure(QName("", "Hoi"))).isEqualTo(
@@ -51,7 +51,7 @@ class ParsingTests {
     @Test
     fun testNamespaceResolutionXmlns() {
 
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/namespace_shizzle/targetnamespace_test.xsd")
 
         Assertions.assertThat(typeDb.getStructure(QName("DefaultNamespace", "SimpleHoi"))).isNotNull
@@ -65,7 +65,7 @@ class ParsingTests {
 
     @Test
     fun testSimpleInclude() {
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/includes/top_level.xsd")
 
         Assertions.assertThat(typeDb.getStructure(QName("something_else", "IncludedType"))).isNull()
@@ -80,7 +80,7 @@ class ParsingTests {
 
     @Test
     fun testSimpleImport() {
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/includes/importer.xsd")
 
         assertThat(typeDb.getElement(QName("BowShikaWow", "Root"))).isEqualTo(
@@ -92,7 +92,7 @@ class ParsingTests {
 
     @Test
     fun testParsingSimpleElement() {
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/single_element.xsd")
 
 
@@ -103,7 +103,7 @@ class ParsingTests {
     @Test
     fun testParsingElementWithInlineDefinedComplexType() {
 
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_complex_type.xsd")
 
         val inlineType = typeDb.getStructureByPartOfName("foobar", "FoodBar")
@@ -116,7 +116,7 @@ class ParsingTests {
     @Test
     fun testParsingElementWithInlineDefinedSimpleType() {
 
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_inline_simple_type.xsd")
 
         val inlineType = typeDb.getStructureByPartOfName("", "Van")
@@ -129,7 +129,7 @@ class ParsingTests {
     @Test
     fun testParsingElementWithInlineDefinedSimpleType2() {
 
-        val parser = SchemaParser()
+        val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_inline_nesting.xsd")
 
         val generatedType = typeDb.getStructureByPartOfName("", "Van")
@@ -138,5 +138,21 @@ class ParsingTests {
                 .isEqualTo(GroupOfSimpleFields(QName("", "Wrapper"), listOf(
                         Element("Van", generatedType!!.getQName())
                 )))
+    }
+
+    @Test
+    fun testExtensionOfBaseTypeIsIndicated() {
+
+        val parser = XmlSchemaParser()
+
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inheritance/abstract_and_concrete.xsd")
+
+        val abstractType = QName("", "AbstractOpdrachtType")
+        val extension1 = QName("", "ConcreteOpdracht")
+        val extension2 = QName("", "NogSpecifieker")
+
+        assertThat(typeDb.getStructure(abstractType)).isEqualTo(GroupOfSimpleFields(abstractType, listOf(), true))
+        assertThat(typeDb.getStructure(extension1)).isEqualTo(GroupOfSimpleFields(extension1, listOf(), extensionOf = abstractType))
+        assertThat(typeDb.getStructure(extension2)).isEqualTo(GroupOfSimpleFields(extension2, listOf(), extensionOf = extension1))
     }
 }

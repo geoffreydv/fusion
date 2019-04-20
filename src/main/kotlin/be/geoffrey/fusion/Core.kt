@@ -47,7 +47,9 @@ abstract class SimpleField(private val name: QName) : Structure {
 }
 
 data class GroupOfSimpleFields(val name: QName,
-                               val fields: List<Element>) : Structure {
+                               val fields: List<Element>,
+                               val abstract: Boolean = false,
+                               val extensionOf: QName? = null) : Structure {
     override fun getQName(): QName {
         return name
     }

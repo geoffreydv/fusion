@@ -8,7 +8,7 @@ import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
 
-class SchemaParser {
+class XmlSchemaParser {
 
     fun readAllElementsAndTypesInFile(schemaFile: String, targetNamespaceOverride: String? = null): KnownBuildingBlocks {
 
@@ -97,16 +97,10 @@ class SchemaParser {
         return UnknownField(nameOfThisType, QName(baseSimpleType.namespaceURI, baseSimpleType.localPart))
     }
 
-    private fun findPatternRestriction(facets: List<Any>): String? {
-
-        for (facetJaxbElement in facets) {
-            if (facetJaxbElement is Pattern) {
-                return facetJaxbElement.value
-            }
-        }
-
-        return null;
-    }
+    private fun findPatternRestriction(facets: List<Any>): String? =
+            facets.filter { it is Pattern }
+                    .map { (it as Pattern).value }
+                    .firstOrNull()
 
     private fun findEnumRestrictions(facets: List<Any>): MutableList<String> {
 
@@ -144,7 +138,19 @@ class SchemaParser {
                 }
             }
         }
-        return GroupOfSimpleFields(QName(thisSchemaTargetNamespace, customName ?: item.name!!), elementsInComplexType)
+
+        val baseType: QName? = findBaseType(item)
+
+        return GroupOfSimpleFields(
+                QName(thisSchemaTargetNamespace, customName ?: item.name!!),
+                elementsInComplexType,
+                item.isAbstract,
+                baseType)
+    }
+
+    private fun findBaseType(item: ComplexType): QName? {
+        val base = item.complexContent?.extension?.base ?: return null
+        return QName(base.namespaceURI, base.localPart)
     }
 
     private fun determineNamespace(thisSchemaTargetNamespace: String, originalQName: javax.xml.namespace.QName): QName {
