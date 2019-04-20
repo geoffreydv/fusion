@@ -109,4 +109,10 @@ open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf
 
         return null
     }
+
+    fun getConcreteImplementationsFor(name: QName): List<GroupOfSimpleFields> {
+        return knownStructures.values
+                .filterIsInstance(GroupOfSimpleFields::class.java)
+                .filter { it.extensionOf == name }
+    }
 }

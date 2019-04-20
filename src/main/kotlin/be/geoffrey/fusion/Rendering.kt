@@ -49,19 +49,31 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         }
 
         val elementType = element.getType()
-        val typeLookup = typeDb.getStructure(elementType)
+        val structure = typeDb.getStructure(elementType)
                 ?: throw IllegalArgumentException("The required type for element ${renderedElement.tagName} was not found: $elementType")
 
-        if (typeLookup is GroupOfSimpleFields) {
+        if (structure is GroupOfSimpleFields) {
+
+            if(structure.abstract) {
+                // Find the first available concrete type
+                val concreteImplementations : List<GroupOfSimpleFields> = typeDb.getConcreteImplementationsFor(structure.name)
+
+                if(concreteImplementations.isEmpty()) {
+                    throw IllegalArgumentException("No concrete implementation was found for abstract type " + structure.name)
+                }
+
+                renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "type", concreteImplementations[0].name.name);
+            }
+
             // Add all the child elements to this element
-            for (field in typeLookup.fields) {
+            for (field in structure.fields) {
                 renderedElement.appendChild(renderSingleElement(doc, field, renderingConfig))
             }
             return renderedElement;
         }
 
-        if (typeLookup is SimpleField) {
-            renderedElement.appendChild(doc.createTextNode(generateExampleValueForSimpleType(typeLookup, renderingConfig)))
+        if (structure is SimpleField) {
+            renderedElement.appendChild(doc.createTextNode(generateExampleValueForSimpleType(structure, renderingConfig)))
             return renderedElement
         }
 

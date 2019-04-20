@@ -51,4 +51,19 @@ class XmlRenderingTests {
                 <FieldTwo xmlns="">string</FieldTwo>
             </MyName>""".trimIndent())
     }
+
+    @Test
+    fun testAbstractTypeDetection() {
+
+        val blocks = XmlBuildingBlocks()
+
+        val baseType = QName("", "BaseType")
+        val implementation = QName("", "Implementation")
+
+        blocks.add(GroupOfSimpleFields(baseType, listOf(), true))
+        blocks.add(GroupOfSimpleFields(implementation, listOf(), false, baseType))
+
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
+        assertThat(output).isEqualToIgnoringWhitespace("""<SomeElement xmlns:ns0="http://www.w3.org/2001/XMLSchema-instance" ns0:type="Implementation"/>""")
+    }
 }
