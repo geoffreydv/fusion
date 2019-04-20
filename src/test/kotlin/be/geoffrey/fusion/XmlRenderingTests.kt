@@ -64,6 +64,6 @@ class XmlRenderingTests {
         blocks.add(GroupOfSimpleFields(implementation, listOf(), false, baseType))
 
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
-        assertThat(output).isEqualToIgnoringWhitespace("""<SomeElement xmlns:ns0="http://www.w3.org/2001/XMLSchema-instance" ns0:type="Implementation"/>""")
+        assertThat(output).isEqualToIgnoringWhitespace("""<SomeElement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Implementation"/>""")
     }
 }

@@ -62,7 +62,12 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
                     throw IllegalArgumentException("No concrete implementation was found for abstract type " + structure.name)
                 }
 
-                renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "type", concreteImplementations[0].name.name);
+                if(concreteImplementations[0].name.namespace != "") {
+                    renderedElement.setAttribute("xmlns:impl", concreteImplementations[0].name.namespace)
+                    renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementations[0].name.name}");
+                } else {
+                    renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", concreteImplementations[0].name.name);
+                }
             }
 
             // Add all the child elements to this element
