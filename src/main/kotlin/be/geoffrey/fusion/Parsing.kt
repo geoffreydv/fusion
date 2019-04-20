@@ -121,22 +121,11 @@ class XmlSchemaParser {
                                  knownBlocks: KnownBuildingBlocks): GroupOfSimpleFields {
 
         val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
-        if (item.sequence != null) {
-            for (sequenceItem in item.sequence.particle) {
-                if (sequenceItem is JAXBElement<*>) {
-                    val actualEntry = sequenceItem.value
 
-                    if (actualEntry is Element) {
-                        if (actualEntry.type != null) {
-                            elementsInComplexType.add(Element(actualEntry.name, determineNamespace(thisSchemaTargetNamespace, actualEntry.type)))
-                        } else {
-                            val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(actualEntry, thisSchemaTargetNamespace, knownBlocks)
-                            knownBlocks.add(dynamicStructure)
-                            elementsInComplexType.add(Element(actualEntry.name, dynamicStructure.getQName()))
-                        }
-                    }
-                }
-            }
+        if (item.complexContent?.extension?.sequence != null) {
+            elementsInComplexType.addAll(createElementsFromItemsInSequence(item.complexContent.extension.sequence, thisSchemaTargetNamespace, knownBlocks))
+        } else if (item.sequence != null) {
+            elementsInComplexType.addAll(createElementsFromItemsInSequence(item.sequence, thisSchemaTargetNamespace, knownBlocks))
         }
 
         val baseType: QName? = findBaseType(item)
@@ -146,6 +135,33 @@ class XmlSchemaParser {
                 elementsInComplexType,
                 item.isAbstract,
                 baseType)
+    }
+
+    private fun createElementsFromItemsInSequence(
+            sequence: ExplicitGroup,
+            thisSchemaTargetNamespace: String,
+            knownBlocks: KnownBuildingBlocks
+    ): MutableList<be.geoffrey.fusion.Element> {
+
+        val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
+
+        for (sequenceItem in sequence.particle) {
+            if (sequenceItem is JAXBElement<*>) {
+                val actualEntry = sequenceItem.value
+
+                if (actualEntry is Element) {
+                    if (actualEntry.type != null) {
+                        elementsInComplexType.add(Element(actualEntry.name, determineNamespace(thisSchemaTargetNamespace, actualEntry.type)))
+                    } else {
+                        val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(actualEntry, thisSchemaTargetNamespace, knownBlocks)
+                        knownBlocks.add(dynamicStructure)
+                        elementsInComplexType.add(Element(actualEntry.name, dynamicStructure.getQName()))
+                    }
+                }
+            }
+        }
+
+        return elementsInComplexType
     }
 
     private fun findBaseType(item: ComplexType): QName? {

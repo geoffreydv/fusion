@@ -7,13 +7,21 @@
 
     <xs:complexType name="ConcreteOpdracht">
         <xs:complexContent>
-            <xs:extension base="AbstractOpdrachtType"/>
+            <xs:extension base="AbstractOpdrachtType">
+                <xs:sequence>
+                    <xs:element name="ConcreteOpdrachtFieldOne" type="xs:string"/>
+                </xs:sequence>
+            </xs:extension>
         </xs:complexContent>
     </xs:complexType>
 
     <xs:complexType name="NogSpecifieker">
         <xs:complexContent>
-            <xs:extension base="ConcreteOpdracht"/>
+            <xs:extension base="ConcreteOpdracht">
+                <xs:sequence>
+                    <xs:element name="NogSpecifiekerFieldOne" type="xs:string"/>
+                </xs:sequence>
+            </xs:extension>
         </xs:complexContent>
     </xs:complexType>
 

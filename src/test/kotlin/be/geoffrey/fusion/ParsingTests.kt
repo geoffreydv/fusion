@@ -147,12 +147,17 @@ class ParsingTests {
 
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inheritance/abstract_and_concrete.xsd")
 
+        val string = QName(XMLNS, "string")
         val abstractType = QName("", "AbstractOpdrachtType")
         val extension1 = QName("", "ConcreteOpdracht")
         val extension2 = QName("", "NogSpecifieker")
 
         assertThat(typeDb.getStructure(abstractType)).isEqualTo(GroupOfSimpleFields(abstractType, listOf(), true))
-        assertThat(typeDb.getStructure(extension1)).isEqualTo(GroupOfSimpleFields(extension1, listOf(), extensionOf = abstractType))
-        assertThat(typeDb.getStructure(extension2)).isEqualTo(GroupOfSimpleFields(extension2, listOf(), extensionOf = extension1))
+        assertThat(typeDb.getStructure(extension1)).isEqualTo(GroupOfSimpleFields(extension1, listOf(
+                Element("ConcreteOpdrachtFieldOne", string)
+        ), extensionOf = abstractType))
+        assertThat(typeDb.getStructure(extension2)).isEqualTo(GroupOfSimpleFields(extension2, listOf(
+                Element("NogSpecifiekerFieldOne", string)
+        ), extensionOf = extension1))
     }
 }
