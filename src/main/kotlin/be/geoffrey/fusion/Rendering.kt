@@ -53,27 +53,36 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
                 ?: throw IllegalArgumentException("The required type for element ${renderedElement.tagName} was not found: $elementType")
 
         if (structure is GroupOfSimpleFields) {
-
-            if(structure.abstract) {
-                // Find the first available concrete type
-                val concreteImplementations : List<GroupOfSimpleFields> = typeDb.getConcreteImplementationsFor(structure.name)
-
-                if(concreteImplementations.isEmpty()) {
-                    throw IllegalArgumentException("No concrete implementation was found for abstract type " + structure.name)
+            if (!structure.abstract) {
+                // Add all the child elements to this element
+                for (field in structure.fields) {
+                    renderedElement.appendChild(renderSingleElement(doc, field, renderingConfig))
                 }
 
-                if(concreteImplementations[0].name.namespace != "") {
-                    renderedElement.setAttribute("xmlns:impl", concreteImplementations[0].name.namespace)
-                    renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementations[0].name.name}");
-                } else {
-                    renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", concreteImplementations[0].name.name);
-                }
+                return renderedElement;
             }
 
-            // Add all the child elements to this element
-            for (field in structure.fields) {
+            // Find the first available concrete type
+            val concreteImplementations: List<GroupOfSimpleFields> = typeDb.getConcreteImplementationsFor(structure.name)
+
+            if (concreteImplementations.isEmpty()) {
+                throw IllegalArgumentException("No concrete implementation was found for abstract type " + structure.name)
+            }
+
+            val concreteImplementation = concreteImplementations[0]
+
+            if (concreteImplementation.name.namespace != "") {
+                renderedElement.setAttribute("xmlns:impl", concreteImplementation.name.namespace)
+                renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementation.name.name}");
+            } else {
+                renderedElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", concreteImplementation.name.name);
+            }
+
+            // Add all the child elements of the concrete implementation to this element
+            for (field in concreteImplementation.fields) {
                 renderedElement.appendChild(renderSingleElement(doc, field, renderingConfig))
             }
+
             return renderedElement;
         }
 
@@ -88,7 +97,8 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
     private fun generateExampleValueForSimpleType(field: SimpleField, renderingConfig: RenderingConfig): String {
         return when (field) {
             is StringField -> "string"
-            is RegexField -> renderingConfig.getRegexValueForType(field.getQName()) ?: ("Regex for type " + field.getQName() + ", pattern: " + field.pattern)
+            is RegexField -> renderingConfig.getRegexValueForType(field.getQName())
+                    ?: ("Regex for type " + field.getQName() + ", pattern: " + field.pattern)
             is NumberField -> "1"
             is EnumField -> field.possibleValues[0]
             is BooleanField -> "true"

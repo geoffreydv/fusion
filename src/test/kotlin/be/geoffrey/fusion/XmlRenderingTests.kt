@@ -66,4 +66,25 @@ class XmlRenderingTests {
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
         assertThat(output).isEqualToIgnoringWhitespace("""<SomeElement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Implementation"/>""")
     }
+
+    @Test
+    fun testRenderImplementationsFields() {
+
+        val blocks = XmlBuildingBlocks()
+
+        val string = QName(XMLNS, "string")
+        val baseType = QName("", "BaseType")
+        val implementation = QName("", "Implementation")
+
+        blocks.add(GroupOfSimpleFields(baseType, listOf(), true))
+        blocks.add(GroupOfSimpleFields(implementation, listOf(
+                Element("SomeField", string)
+        ), false, baseType))
+
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
+        assertThat(output).isEqualToIgnoringWhitespace("""
+            <SomeElement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Implementation">
+                <SomeField>string</SomeField>
+            </SomeElement>""")
+    }
 }
