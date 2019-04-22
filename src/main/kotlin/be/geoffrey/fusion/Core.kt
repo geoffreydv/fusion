@@ -1,17 +1,22 @@
 package be.geoffrey.fusion
 
-import kotlin.math.max
-
 data class QName(val namespace: String, val name: String)
 
 interface PossiblePartOfGroup
 
 interface ElementBase {
+
+    fun getDisplayName(): String
+
     fun getType(): QName
 }
 
 data class Element(val name: String,
                    val elementType: QName) : PossiblePartOfGroup, ElementBase {
+
+    override fun getDisplayName(): String {
+        return name
+    }
 
     override fun getType(): QName {
         return elementType
@@ -19,6 +24,10 @@ data class Element(val name: String,
 }
 
 data class TopLevelElement(val name: QName, val elementType: QName) : ElementBase {
+    override fun getDisplayName(): String {
+        return name.name
+    }
+
     override fun getType(): QName {
         return elementType
     }
