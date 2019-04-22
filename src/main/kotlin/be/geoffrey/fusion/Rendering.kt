@@ -44,19 +44,15 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
                                     element: ElementBase,
                                     renderingConfig: RenderingConfig): Element? {
 
-        val elementType = element.getType()
-        val structure = typeDb.getStructure(elementType)
-                ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: $elementType")
+        val structure = typeDb.getStructure(element.getStructureReference())
+                ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")
 
-        if (structure is GroupOfSimpleFields) {
-            return createDomElementForGroupOfSimpleFields(element, doc, structure, renderingConfig)
+        when (structure) {
+            is GroupOfSimpleFields -> return createDomElementForGroupOfSimpleFields(element, doc, structure, renderingConfig)
+            is SimpleField -> return createDomElementForSimpleField(element, doc, structure, renderingConfig)
+            else -> throw IllegalArgumentException("How did I even get here?")
         }
 
-        if (structure is SimpleField) {
-            return createDomElementForSimpleField(element, doc, structure, renderingConfig)
-        }
-
-        throw IllegalArgumentException("How did I even get here?")
     }
 
     private fun createDomElementForSimpleField(element: ElementBase, doc: Document, structure: SimpleField, renderingConfig: RenderingConfig): Element {

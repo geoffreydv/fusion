@@ -8,7 +8,7 @@ interface ElementBase {
 
     fun getDisplayName(): String
 
-    fun getType(): QName
+    fun getStructureReference(): QName
 }
 
 data class Element(val name: String,
@@ -18,7 +18,7 @@ data class Element(val name: String,
         return name
     }
 
-    override fun getType(): QName {
+    override fun getStructureReference(): QName {
         return elementType
     }
 }
@@ -28,7 +28,7 @@ data class TopLevelElement(val name: QName, val elementType: QName) : ElementBas
         return name.name
     }
 
-    override fun getType(): QName {
+    override fun getStructureReference(): QName {
         return elementType
     }
 }
