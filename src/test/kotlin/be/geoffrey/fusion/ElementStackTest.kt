@@ -35,4 +35,18 @@ class ElementStackTest {
 
         assertThat(stack.recursionWillStartWhenAdding(baseElement2)).isTrue()
     }
+
+    @Test
+    fun testRecursionDepth() {
+        val baseElement1 = TopLevelElement(QName("a", "element"), QName("a", "b"))
+        val baseElement2 = Element("AField", QName("does not", "matter"))
+
+        val stack = ElementStack()
+        stack.push(baseElement1)
+        stack.push(baseElement2)
+        stack.push(baseElement2.copy())
+
+        assertThat(stack.recursionWillStartWhenAdding(baseElement2, maxDepth = 2)).isTrue()
+        assertThat(stack.recursionWillStartWhenAdding(baseElement2, maxDepth = 3)).isFalse()
+    }
 }
