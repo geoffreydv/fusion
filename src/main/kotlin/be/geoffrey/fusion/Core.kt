@@ -1,5 +1,7 @@
 package be.geoffrey.fusion
 
+import kotlin.math.max
+
 data class QName(val namespace: String, val name: String)
 
 interface PossiblePartOfGroup
@@ -52,6 +54,48 @@ data class GroupOfSimpleFields(val name: QName,
                                val extensionOf: QName? = null) : Structure {
     override fun getQName(): QName {
         return name
+    }
+}
+
+class ElementStack {
+    private val elements: MutableList<ElementBase> = mutableListOf()
+
+    fun isEmpty() = elements.isEmpty()
+
+    fun size() = elements.size
+
+    fun push(item: ElementBase) = elements.add(item)
+
+    fun pop(): ElementBase? {
+        val item = elements.lastOrNull()
+        if (!isEmpty()) {
+            elements.removeAt(elements.size - 1)
+        }
+        return item
+    }
+
+    fun peek(): ElementBase? = elements.lastOrNull()
+
+    fun visualizePath(): String {
+        return "/" + elements.joinToString("/") {
+            when (it) {
+                is TopLevelElement -> it.name.name
+                is Element -> it.name
+                else -> throw IllegalArgumentException("Unknown type")
+            }
+        }
+    }
+
+    override fun toString(): String = elements.toString()
+
+    fun recursionWillStartWhenAdding(element: Element,
+                                     maxDepth: Int = 2): Boolean {
+
+        val previousOccurrences = elements.count {
+            it is Element && it.elementType == element.elementType
+        }
+
+        return previousOccurrences >= maxDepth
     }
 }
 

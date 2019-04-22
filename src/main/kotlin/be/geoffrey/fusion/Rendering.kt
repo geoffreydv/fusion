@@ -40,7 +40,9 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return sw.toString().trim()
     }
 
-    private fun renderSingleElement(doc: Document, element: ElementBase, renderingConfig: RenderingConfig): Element? {
+    private fun renderSingleElement(doc: Document,
+                                    element: ElementBase,
+                                    renderingConfig: RenderingConfig): Element? {
 
         val renderedElement: Element = when (element) {
             is TopLevelElement -> doc.createElementNS(element.name.namespace, element.name.name)
