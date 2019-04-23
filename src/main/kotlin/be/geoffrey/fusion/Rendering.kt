@@ -42,7 +42,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
 
     private fun renderSingleElement(doc: Document,
                                     element: ElementBase,
-                                    renderingConfig: RenderingConfig): Element? {
+                                    renderingConfig: RenderingConfig): Element {
 
         return when (val structure = typeDb.getStructure(element.getStructureReference())
                 ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")) {
@@ -58,7 +58,12 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return domElement
     }
 
-    private fun createDomElementForGroupOfSimpleFields(element: ElementBase, doc: Document, structure: GroupOfSimpleFields, renderingConfig: RenderingConfig): Element {
+    private fun createDomElementForGroupOfSimpleFields(
+            element: ElementBase,
+            doc: Document,
+            structure: GroupOfSimpleFields,
+            renderingConfig: RenderingConfig
+    ): Element {
         val domElement: Element = createDomElement(element, doc)
 
         if (!structure.abstract) {
@@ -67,7 +72,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
                 domElement.appendChild(renderSingleElement(doc, field, renderingConfig))
             }
 
-            return domElement;
+            return domElement
         }
 
         // Find the first available concrete type
@@ -81,9 +86,9 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
 
         if (concreteImplementation.name.namespace != "") {
             domElement.setAttribute("xmlns:impl", concreteImplementation.name.namespace)
-            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementation.name.name}");
+            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementation.name.name}")
         } else {
-            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", concreteImplementation.name.name);
+            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", concreteImplementation.name.name)
         }
 
         // Add all the child elements of the concrete implementation to this element
@@ -91,7 +96,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
             domElement.appendChild(renderSingleElement(doc, field, renderingConfig))
         }
 
-        return domElement;
+        return domElement
     }
 
     private fun createDomElement(element: ElementBase, doc: Document): Element {
