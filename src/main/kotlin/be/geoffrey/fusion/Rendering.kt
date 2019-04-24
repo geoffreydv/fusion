@@ -26,7 +26,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         icBuilder = icFactory.newDocumentBuilder()
         val doc = icBuilder.newDocument()
 
-        doc.appendChild(renderSingleElement(doc, element, renderingConfig))
+        doc.appendChild(createDomElementForElement(doc, element, renderingConfig, ElementStack()))
 
         val transformer = TransformerFactory.newInstance().newTransformer()
         transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
@@ -40,16 +40,22 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return sw.toString().trim()
     }
 
-    private fun renderSingleElement(doc: Document,
-                                    element: ElementBase,
-                                    renderingConfig: RenderingConfig): Element {
+    private fun createDomElementForElement(doc: Document,
+                                           element: ElementBase,
+                                           renderingConfig: RenderingConfig,
+                                           stack: ElementStack): Element {
 
-        return when (val structure = typeDb.getStructure(element.getStructureReference())
+        stack.push(element)
+
+        val domElement = when (val structure = typeDb.getStructure(element.getStructureReference())
                 ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")) {
-            is GroupOfSimpleFields -> createDomElementForGroupOfSimpleFields(element, doc, structure, renderingConfig)
+            is GroupOfSimpleFields -> createDomElementForGroupOfSimpleFields(element, doc, structure, renderingConfig, stack)
             is SimpleField -> createDomElementForSimpleField(element, doc, structure, renderingConfig)
             else -> throw IllegalArgumentException("How did I even get here?")
         }
+
+        stack.pop()
+        return domElement
     }
 
     private fun createDomElementForSimpleField(element: ElementBase, doc: Document, structure: SimpleField, renderingConfig: RenderingConfig): Element {
@@ -62,19 +68,34 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
             element: ElementBase,
             doc: Document,
             structure: GroupOfSimpleFields,
-            renderingConfig: RenderingConfig
+            renderingConfig: RenderingConfig,
+            stack: ElementStack
     ): Element {
         val domElement: Element = createDomElement(element, doc)
 
         if (!structure.abstract) {
             // Add all the child elements to this element
-            for (field in structure.fields) {
-                domElement.appendChild(renderSingleElement(doc, field, renderingConfig))
-            }
-
+            appendAllChildrenToElement(structure, domElement, doc, renderingConfig, stack)
             return domElement
         }
 
+        val concreteImplementation = findConcreteImplementation(structure)
+        modifyDomElementToMatchConcreteImplementationType(concreteImplementation, domElement)
+        appendAllChildrenToElement(concreteImplementation, domElement, doc, renderingConfig, stack)
+
+        return domElement
+    }
+
+    private fun modifyDomElementToMatchConcreteImplementationType(concreteImplementation: GroupOfSimpleFields, domElement: Element) {
+        if (concreteImplementation.name.namespace != "") {
+            domElement.setAttribute("xmlns:impl", concreteImplementation.name.namespace)
+            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementation.name.name}")
+        } else {
+            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", concreteImplementation.name.name)
+        }
+    }
+
+    private fun findConcreteImplementation(structure: GroupOfSimpleFields): GroupOfSimpleFields {
         // Find the first available concrete type
         val concreteImplementations: List<GroupOfSimpleFields> = typeDb.getConcreteImplementationsFor(structure.name)
 
@@ -82,21 +103,20 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
             throw IllegalArgumentException("No concrete implementation was found for abstract type " + structure.name)
         }
 
-        val concreteImplementation = concreteImplementations[0]
+        return concreteImplementations[0]
+    }
 
-        if (concreteImplementation.name.namespace != "") {
-            domElement.setAttribute("xmlns:impl", concreteImplementation.name.namespace)
-            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementation.name.name}")
-        } else {
-            domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", concreteImplementation.name.name)
+    private fun appendAllChildrenToElement(
+            structure: GroupOfSimpleFields,
+            domElement: Element,
+            doc: Document,
+            renderingConfig: RenderingConfig,
+            stack: ElementStack) {
+        for (field in structure.fields) {
+            if(!stack.recursionWillStartWhenAdding(field)) {
+                domElement.appendChild(createDomElementForElement(doc, field, renderingConfig, stack))
+            }
         }
-
-        // Add all the child elements of the concrete implementation to this element
-        for (field in concreteImplementation.fields) {
-            domElement.appendChild(renderSingleElement(doc, field, renderingConfig))
-        }
-
-        return domElement
     }
 
     private fun createDomElement(element: ElementBase, doc: Document): Element {

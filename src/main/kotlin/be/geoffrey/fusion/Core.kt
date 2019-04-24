@@ -101,7 +101,7 @@ class ElementStack {
                                      maxDepth: Int = 2): Boolean {
 
         val previousOccurrences = elements.count {
-            it is Element && it.elementType == element.elementType
+            it.getStructureReference() == element.elementType
         }
 
         return previousOccurrences >= maxDepth

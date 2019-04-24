@@ -87,4 +87,26 @@ class XmlRenderingTests {
                 <SomeField>string</SomeField>
             </SomeElement>""")
     }
+
+    @Test
+    fun testRecursionBreaking() {
+
+        val blocks = XmlBuildingBlocks()
+
+        val recursingTypeName = QName("", "RecursingType")
+        blocks.add(GroupOfSimpleFields(recursingTypeName, listOf(
+                Element("JustSomeRandomField", QName(XMLNS, "string")),
+                Element("TheCurseOfRecursalot", recursingTypeName)
+        )))
+
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "TestElement"), recursingTypeName))
+        assertThat(output).isEqualToIgnoringWhitespace("""
+            <TestElement>
+                <JustSomeRandomField>string</JustSomeRandomField>
+                <TheCurseOfRecursalot>
+                    <JustSomeRandomField>string</JustSomeRandomField>
+                </TheCurseOfRecursalot>
+            </TestElement>
+        """)
+    }
 }
