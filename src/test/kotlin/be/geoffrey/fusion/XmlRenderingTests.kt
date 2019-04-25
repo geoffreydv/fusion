@@ -89,6 +89,37 @@ class XmlRenderingTests {
     }
 
     @Test
+    fun testCopyingFieldsFromParentClasses() {
+        val blocks = XmlBuildingBlocks()
+
+        val string = QName(XMLNS, "string")
+        val baseType = QName("", "BaseType")
+        val implementation = QName("", "Implementation")
+        val moreSpecific = QName("", "MoreSpecific")
+
+        blocks.add(GroupOfSimpleFields(baseType, listOf(
+                Element("BaseField", string)
+        ), true))
+
+        blocks.add(GroupOfSimpleFields(implementation, listOf(
+                Element("ImplField", string)
+        ), false, baseType))
+
+        blocks.add(GroupOfSimpleFields(moreSpecific, listOf(
+                Element("SpecificField", string)
+        ), false, implementation))
+
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), moreSpecific))
+        assertThat(output).isEqualToIgnoringWhitespace("""
+            <SomeElement>
+                <BaseField>string</BaseField>
+                <ImplField>string</ImplField>
+                <SpecificField>string</SpecificField>
+            </SomeElement>
+            """)
+    }
+
+    @Test
     fun testRecursionBreaking() {
 
         val blocks = XmlBuildingBlocks()

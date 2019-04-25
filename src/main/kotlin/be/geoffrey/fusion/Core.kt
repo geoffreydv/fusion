@@ -168,4 +168,18 @@ open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf
                 .filterIsInstance(GroupOfSimpleFields::class.java)
                 .filter { it.extensionOf == name }
     }
+
+    fun getParentTypesFor(structure: GroupOfSimpleFields): List<GroupOfSimpleFields> {
+
+        var structToCheck = structure
+        val results = mutableListOf<GroupOfSimpleFields>()
+
+        while (structToCheck.extensionOf != null) {
+            val base = getStructure(structToCheck.extensionOf!!) as GroupOfSimpleFields
+            results.add(base)
+            structToCheck = base
+        }
+
+        return results.reversed()
+    }
 }

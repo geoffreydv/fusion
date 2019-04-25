@@ -74,7 +74,6 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         val domElement: Element = createDomElement(element, doc)
 
         if (!structure.abstract) {
-            // Add all the child elements to this element
             appendAllChildrenToElement(structure, domElement, doc, renderingConfig, stack)
             return domElement
         }
@@ -106,17 +105,25 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return concreteImplementations[0]
     }
 
-    private fun appendAllChildrenToElement(
-            structure: GroupOfSimpleFields,
-            domElement: Element,
-            doc: Document,
-            renderingConfig: RenderingConfig,
-            stack: ElementStack) {
-        for (field in structure.fields) {
-            if(!stack.recursionWillStartWhenAdding(field)) {
+    private fun appendAllChildrenToElement(structure: GroupOfSimpleFields, domElement: Element, doc: Document, renderingConfig: RenderingConfig, stack: ElementStack) {
+        for (field in allFieldsInStructure(structure)) {
+            if (!stack.recursionWillStartWhenAdding(field)) {
                 domElement.appendChild(createDomElementForElement(doc, field, renderingConfig, stack))
             }
         }
+    }
+
+    private fun allFieldsInStructure(structure: GroupOfSimpleFields): List<be.geoffrey.fusion.Element> {
+        val parents = typeDb.getParentTypesFor(structure)
+
+        val elements = mutableListOf<be.geoffrey.fusion.Element>()
+
+        for (parent in parents) {
+            elements.addAll(parent.fields)
+        }
+
+        elements.addAll(structure.fields)
+        return elements
     }
 
     private fun createDomElement(element: ElementBase, doc: Document): Element {
