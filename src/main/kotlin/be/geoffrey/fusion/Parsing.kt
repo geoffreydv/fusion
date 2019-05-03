@@ -2,11 +2,13 @@ package be.geoffrey.fusion
 
 import org.w3._2001.xmlschema.*
 import org.w3._2001.xmlschema.Element
+import org.xml.sax.SAXParseException
 import java.io.File
 import java.io.StringReader
 import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
+import javax.xml.bind.UnmarshalException
 
 class XmlSchemaParser {
 
@@ -16,7 +18,13 @@ class XmlSchemaParser {
 
         val asString = File(schemaFile).readText()
         val sw = StringReader(asString)
-        val schema = JAXB.unmarshal(sw, Schema::class.java)
+        val schema: Schema
+        try {
+            schema = JAXB.unmarshal(sw, Schema::class.java)
+        } catch (e: Throwable) {
+            println("HEY")
+            throw IllegalArgumentException("bla")
+        }
 
         val thisSchemaTargetNamespace = determineTargetNamespace(schema, targetNamespaceOverride)
 

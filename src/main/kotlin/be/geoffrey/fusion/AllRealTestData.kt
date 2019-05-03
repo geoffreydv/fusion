@@ -8,9 +8,9 @@ import javax.xml.XMLConstants
 import javax.xml.transform.stream.StreamSource
 import javax.xml.validation.SchemaFactory
 
-fun main(args: Array<String>) {
+fun main() {
 
-    val baseDir = File("C:\\projects\\roots\\mow\\edelta-connector\\target\\classes\\META-INF\\wsdl\\v20")
+    val baseDir = File("C:\\projects\\roots\\mow\\edelta-connector\\src\\main\\resources\\META-INF\\wsdl\\v20")
 
     val xsdFiles = baseDir.walkTopDown()
             .filter { it.extension == "xsd" }
@@ -38,27 +38,20 @@ fun main(args: Array<String>) {
                         RegexValueForType(QName("http://generiek-edelta-common.edelta.mow.vlaanderen.be", "UuidType"), "aaaaaaaa-1111-2222-3333-abcdefghijkl"),
                         RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "TijdType"), "29:01"),
                         RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingIdentificatieType"), "1"),
-                        RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingOorsprongType"), "2")
+                        RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingOorsprongType"), "2"),
+                        RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "VolledigDatumType"), "1904-01-10"),
+                        RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "Datum2_0Type"), "2008-01-10")
                 ))
 
                 val asXml = XmlRenderer(knowledge).render(knownElement, renderingConfig)
 
-                print(asXml)
+                if(!isXmlValid(asXml, it.absolutePath)) {
+                    println(asXml)
+                    throw IllegalArgumentException("Invalid xml generated.")
+                }
             }
         }
     }
-
-
-//
-//    val schemaLocation = "C:\\projects\\roots\\mow\\edelta-consumer-connector\\src\\main\\resources\\META-INF\\wsdl\\v20\\Aanbieden\\GeefOpdrachtDienst-05.00\\GeefOpdrachtWsResponse.xsd"
-//
-//    val knowledge = parser.readAllElementsAndTypesInFile(schemaLocation)
-//
-//    val elementToRender = QName("http://webservice.geefopdrachtwsdienst-02_00.edelta.mow.vlaanderen.be", "GeefOpdrachtWsResponse")
-//    val element = knowledge.getElement(elementToRender)!!
-//
-//
-//    print(if (isXmlValid(asXml, schemaLocation)) "VALID" else "INVALID")
 }
 
 private fun isXmlValid(
