@@ -139,7 +139,8 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
             is StringField -> "string"
             is RegexField -> renderingConfig.getRegexValueForType(field.getQName())
                     ?: ("Regex for type " + field.getQName() + ", pattern: " + field.pattern)
-            is NumberField -> "1"
+            is IntField -> "1"
+            is DecimalField -> "123.456"
             is EnumField -> field.possibleValues[0]
             is BooleanField -> "true"
             else -> throw IllegalArgumentException("This type is known but I have no clue how to render it. The field is a ${field.javaClass}, the original type is: ${field.getQName()}")

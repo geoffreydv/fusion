@@ -34,18 +34,21 @@ data class TopLevelElement(val name: QName, val elementType: QName) : ElementBas
 }
 
 data class RegexField(private val name: QName,
-                      val pattern: String) : SimpleField(name) {
-}
+                      val pattern: String) : SimpleField(name)
 
-data class NumberField(private val name: QName) : SimpleField(name)
+data class IntField(private val name: QName) : SimpleField(name)
+
+data class DecimalField(private val name: QName) : SimpleField(name)
+
+data class DateTimeField(private val name: QName) : SimpleField(name)
 
 data class BooleanField(private val name: QName) : SimpleField(name)
 
 data class StringField(private val name: QName) : SimpleField(name)
 
-data class UnknownField(private val name: QName, private val type: QName) : SimpleField(name)
-
 data class EnumField(private val name: QName, val possibleValues: List<String>) : SimpleField(name)
+
+data class Base64Field(private val name: QName) : SimpleField(name)
 
 interface Structure {
     fun getQName(): QName
@@ -113,7 +116,12 @@ const val XMLNS = "http://www.w3.org/2001/XMLSchema"
 class XmlBuildingBlocks : KnownBuildingBlocks(listOf(
         StringField(QName(XMLNS, "string")),
         BooleanField(QName(XMLNS, "boolean")),
-        NumberField(QName(XMLNS, "int")))
+        IntField(QName(XMLNS, "int")),
+        IntField(QName(XMLNS, "integer")),
+        DecimalField(QName(XMLNS, "decimal")),
+        DecimalField(QName(XMLNS, "double")),
+        DateTimeField(QName(XMLNS, "dateTime")),
+        Base64Field(QName(XMLNS, "base64Binary")))
 )
 
 open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf()) {
@@ -181,5 +189,9 @@ open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf
         }
 
         return results.reversed()
+    }
+
+    fun getKnownElements(): List<TopLevelElement> {
+        return knownElements.values.toList()
     }
 }

@@ -121,6 +121,7 @@ class ParsingTests {
 
         val inlineType = typeDb.getStructureByPartOfName("", "Van")
         assertThat(inlineType).isNotNull
+        assertThat(inlineType).isExactlyInstanceOf(IntField::class.java)
 
         Assertions.assertThat(typeDb.getElement(QName("", "Van")))
                 .isEqualTo(TopLevelElement(QName("", "Van"), inlineType!!.getQName()))

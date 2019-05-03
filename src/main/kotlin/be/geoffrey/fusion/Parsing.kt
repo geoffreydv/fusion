@@ -34,7 +34,7 @@ class XmlSchemaParser {
             if (item is TopLevelComplexType) {
                 knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
             } else if (item is SimpleType) {
-                knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace))
+                knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
             } else if (item is org.w3._2001.xmlschema.TopLevelElement) {
 
                 // If the item has no type then it defines its type inside this element... Handle that!
@@ -60,7 +60,7 @@ class XmlSchemaParser {
         if (item.complexType != null) {
             return parseComplexType(item.complexType, thisSchemaTargetNamespace, generateRandomStructureName(item), knownBlocks = knownBlocks)
         } else if (item.simpleType != null) {
-            return parseSimpleType(item.simpleType, thisSchemaTargetNamespace, generateRandomStructureName(item))
+            return parseSimpleType(item.simpleType, thisSchemaTargetNamespace, generateRandomStructureName(item), knownBlocks)
         }
         throw IllegalArgumentException("Sorry, I have no clue how to parse this...")
     }
@@ -70,31 +70,44 @@ class XmlSchemaParser {
     private fun parseSimpleType(
             item: SimpleType,
             thisSchemaTargetNamespace: String,
-            nameOverride: String? = null
+            nameOverride: String? = null,
+            knownBlocks: KnownBuildingBlocks
     ): SimpleField {
 
-        val baseSimpleType = item.restriction.base
+        val baseSimpleTypeName = item.restriction.base
                 ?: throw IllegalArgumentException("I have no clue how to parse this, sorry :(")
 
         val nameOfThisType = QName(thisSchemaTargetNamespace, nameOverride ?: item.name)
 
-        if (baseSimpleType.namespaceURI == XMLNS) {
-            if (baseSimpleType.localPart == "string") {
-                val enumRestrictions = findEnumRestrictions(item.restriction.facets)
-                if (enumRestrictions.isNotEmpty()) {
-                    return EnumField(nameOfThisType, enumRestrictions)
-                }
+        // When parsing, just lookup the type from the registry
+        // When it's a string, specialize it with additional restrictions
 
-                val pattern: String? = findPatternRestriction(item.restriction.facets)
-                if (pattern != null) {
-                    return RegexField(nameOfThisType, pattern)
-                }
+        if (baseSimpleTypeName.namespaceURI == XMLNS) {
 
-                return StringField(nameOfThisType)
+            val baseType = knownBlocks.getStructure(QName(XMLNS, baseSimpleTypeName.localPart))
+
+            when (baseType) {
+                is StringField -> {
+                    val enumRestrictions = findEnumRestrictions(item.restriction.facets)
+                    if (enumRestrictions.isNotEmpty()) {
+                        return EnumField(nameOfThisType, enumRestrictions)
+                    }
+
+                    val pattern: String? = findPatternRestriction(item.restriction.facets)
+                    if (pattern != null) {
+                        return RegexField(nameOfThisType, pattern)
+                    }
+
+                    return StringField(nameOfThisType)
+                }
+                is IntField -> return IntField(nameOfThisType)
+                is DecimalField -> return DecimalField(nameOfThisType)
+                is DateTimeField -> return DateTimeField(nameOfThisType)
+                is Base64Field -> return Base64Field(nameOfThisType)
             }
         }
 
-        return UnknownField(nameOfThisType, QName(baseSimpleType.namespaceURI, baseSimpleType.localPart))
+        throw IllegalArgumentException("Could not determine the basetype of a custom simpletype: $nameOfThisType, base: ${QName(baseSimpleTypeName.namespaceURI, baseSimpleTypeName.localPart)}")
     }
 
     private fun findPatternRestriction(facets: List<Any>): String? =
