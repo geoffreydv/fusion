@@ -26,8 +26,7 @@ class XmlSchemaParser {
         try {
             schema = JAXB.unmarshal(sw, Schema::class.java)
         } catch (e: Throwable) {
-            println("HEY")
-            throw IllegalArgumentException("bla")
+            throw IllegalArgumentException(e.message)
         }
 
         val thisSchemaTargetNamespace = determineTargetNamespace(schema, targetNamespaceOverride)
