@@ -110,24 +110,30 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
             domElement: Element,
             doc: Document,
             renderingConfig: RenderingConfig,
-            stack: ElementStack
-    ) {
+            stack: ElementStack) {
 
         val parts = prependAllParentElements(structure)
+        val fields = breakTreeStructureIntoFlatListOfFields(parts)
 
-        val elements = breakTreeStructureIntoFlatListOfElements(parts)
+        for (field in fields) {
 
-        for (structureElement in elements) {
-
-            if (stack.recursionWillStartWhenAdding(structureElement)) {
+            if (stack.recursionWillStartWhenAdding(field)) {
                 return
             }
 
-            domElement.appendChild(createDomElementForElement(doc, structureElement, renderingConfig, stack))
+            for (i in 0 until decideTimesToRenderField(field)) {
+                domElement.appendChild(createDomElementForElement(doc, field, renderingConfig, stack))
+            }
         }
     }
 
-    private fun breakTreeStructureIntoFlatListOfElements(parts: MutableList<StructureElement>): List<be.geoffrey.fusion.Element> {
+    private fun decideTimesToRenderField(field: be.geoffrey.fusion.Element): Int {
+        return if (field.minOccurs > 1) {
+            field.minOccurs
+        } else 1
+    }
+
+    private fun breakTreeStructureIntoFlatListOfFields(parts: MutableList<StructureElement>): List<be.geoffrey.fusion.Element> {
 
         // Get one or more elements to render and render them
 
@@ -144,13 +150,13 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
                 }
                 is SequenceOfElements -> {
                     for (partInSequence in part.allElements()) {
-                        flat.addAll(breakTreeStructureIntoFlatListOfElements(mutableListOf(partInSequence)))
+                        flat.addAll(breakTreeStructureIntoFlatListOfFields(mutableListOf(partInSequence)))
                     }
                 }
                 is ChoiceOfElements -> {
                     val elementToRender = decideChoiceElementToRender(part)
                     if (elementToRender != null) {
-                        flat.addAll(breakTreeStructureIntoFlatListOfElements(mutableListOf(elementToRender)))
+                        flat.addAll(breakTreeStructureIntoFlatListOfFields(mutableListOf(elementToRender)))
                     }
                 }
             }

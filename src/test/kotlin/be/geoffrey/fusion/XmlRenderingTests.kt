@@ -53,6 +53,22 @@ class XmlRenderingTests {
     }
 
     @Test
+    fun testMinOccursIsAccountedFor() {
+
+        val blocks = XmlBuildingBlocks()
+        blocks.add(ComplexType(QName("shwoep", "SomeType"), listOf(SequenceOfElements(listOf(
+                Element("FieldOne", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs = 2)
+        )))))
+
+        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
+        assertThat(output).isEqualToIgnoringWhitespace("""
+            <MyName xmlns="shwoep">
+                <FieldOne xmlns="">string</FieldOne>
+                <FieldOne xmlns="">string</FieldOne>
+            </MyName>""".trimIndent())
+    }
+
+    @Test
     fun testAbstractTypeDetection() {
 
         val blocks = XmlBuildingBlocks()
