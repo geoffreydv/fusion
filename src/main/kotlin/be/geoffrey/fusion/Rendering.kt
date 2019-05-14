@@ -49,8 +49,8 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
 
         val domElement = when (val structure = typeDb.getStructure(element.getStructureReference())
                 ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")) {
-            is ComplexType -> createDomElementForGroupOfSimpleFields(element, doc, structure, renderingConfig, stack)
-            is SimpleField -> createDomElementForSimpleField(element, doc, structure, renderingConfig)
+            is SimpleField -> simpleTypeToDomElement(element, doc, structure, renderingConfig)
+            is ComplexType -> complexTypeToDomElement(element, doc, structure, renderingConfig, stack)
             else -> throw IllegalArgumentException("How did I even get here?")
         }
 
@@ -58,13 +58,13 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return domElement
     }
 
-    private fun createDomElementForSimpleField(element: ElementBase, doc: Document, structure: SimpleField, renderingConfig: RenderingConfig): Element {
+    private fun simpleTypeToDomElement(element: ElementBase, doc: Document, structure: SimpleField, renderingConfig: RenderingConfig): Element {
         val domElement: Element = createDomElement(element, doc)
         domElement.appendChild(doc.createTextNode(generateExampleValueForSimpleType(structure, renderingConfig)))
         return domElement
     }
 
-    private fun createDomElementForGroupOfSimpleFields(
+    private fun complexTypeToDomElement(
             element: ElementBase,
             doc: Document,
             structure: ComplexType,
@@ -115,7 +115,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
 
         val parts = prependAllParentElements(structure)
 
-        val elements = flattenStructureElementsToListOfElement(parts)
+        val elements = breakTreeStructureIntoFlatListOfElements(parts)
 
         for (structureElement in elements) {
 
@@ -127,7 +127,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         }
     }
 
-    private fun flattenStructureElementsToListOfElement(parts: MutableList<StructureElement>): List<be.geoffrey.fusion.Element> {
+    private fun breakTreeStructureIntoFlatListOfElements(parts: MutableList<StructureElement>): List<be.geoffrey.fusion.Element> {
 
         // Get one or more elements to render and render them
 
@@ -140,25 +140,17 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         for (part in parts) {
             when (part) {
                 is be.geoffrey.fusion.Element -> {
-                    return listOf(part)
+                    flat.add(part)
                 }
                 is SequenceOfElements -> {
-                    if (part.allElements().isEmpty()) {
-                        return listOf()
-                    }
-
                     for (partInSequence in part.allElements()) {
-                        flat.addAll(flattenStructureElementsToListOfElement(mutableListOf(partInSequence)))
+                        flat.addAll(breakTreeStructureIntoFlatListOfElements(mutableListOf(partInSequence)))
                     }
                 }
                 is ChoiceOfElements -> {
-                    if (part.allElements().isEmpty()) {
-                        return listOf()
-                    }
-
                     val elementToRender = decideChoiceElementToRender(part)
                     if (elementToRender != null) {
-                        flat.addAll(flattenStructureElementsToListOfElement(mutableListOf(elementToRender)))
+                        flat.addAll(breakTreeStructureIntoFlatListOfElements(mutableListOf(elementToRender)))
                     }
                 }
             }

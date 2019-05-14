@@ -98,7 +98,6 @@ class XmlRenderingTests {
         val moreSpecific = QName("", "MoreSpecific")
 
         blocks.add(ComplexType(baseType, listOf(SequenceOfElements(listOf(
-                Element("BaseField", string)
         ))), true))
 
         blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(
@@ -112,7 +111,6 @@ class XmlRenderingTests {
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), moreSpecific))
         assertThat(output).isEqualToIgnoringWhitespace("""
             <SomeElement>
-                <BaseField>string</BaseField>
                 <ImplField>string</ImplField>
                 <SpecificField>string</SpecificField>
             </SomeElement>

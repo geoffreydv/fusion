@@ -11,11 +11,11 @@ import javax.xml.validation.SchemaFactory
 fun main() {
     val parser = XmlSchemaParser()
 
-    val schemaLocation = "C:\\projects\\roots\\mow\\edelta-connector\\target\\classes\\META-INF\\wsdl\\v20\\Aanbieden\\ZoekBetwistingenDienst-01.00\\ZoekBetwistingenWs.xsd"
+    val schemaLocation = "C:\\projects\\roots\\mow\\edelta-connector\\src\\main\\resources\\META-INF\\wsdl\\v20\\Aanbieden\\GeefOpdrachtDienst-05.00\\GeefOpdrachtWsResponse.xsd"
 
     val knowledge = parser.readAllElementsAndTypesInFile(schemaLocation)
 
-    val elementToRender = QName(namespace="http://webservice.zoekbetwistingenwsdienst-01_00.edelta.mow.vlaanderen.be", name="ZoekBetwistingenWs")
+    val elementToRender = QName(namespace="http://webservice.geefopdrachtwsdienst-02_00.edelta.mow.vlaanderen.be", name="GeefOpdrachtWsResponse")
     val element = knowledge.getElement(elementToRender)!!
 
     val renderingConfig = RenderingConfig(listOf(
