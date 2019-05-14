@@ -4,6 +4,7 @@ import org.w3._2001.xmlschema.*
 import org.w3._2001.xmlschema.Element
 import java.io.File
 import java.io.StringReader
+import java.math.BigInteger
 import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
@@ -40,23 +41,15 @@ class XmlSchemaParser {
                 knownBlocks.addAllOfOther(readAllElementsAndTypesInFile(pathOfOtherXsd, extension.namespace))
             }
         }
+
         for (item in schema.simpleTypeOrComplexTypeOrGroup) {
-
-            if (item is TopLevelComplexType) {
-                knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
-            } else if (item is SimpleType) {
-                knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
-            } else if (item is org.w3._2001.xmlschema.TopLevelElement) {
-
-                // If the item has no type then it defines its type inside this element... Handle that!
-                val elementName = QName(thisSchemaTargetNamespace, item.name)
-
-                if (item.type != null) {
-                    knownBlocks.add(TopLevelElement(elementName, determineNamespace(thisSchemaTargetNamespace, item.type)))
-                } else {
-                    val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(item, thisSchemaTargetNamespace, knownBlocks)
-                    knownBlocks.add(dynamicStructure)
-                    knownBlocks.add(TopLevelElement(elementName, dynamicStructure.getQName()))
+            when (item) {
+                is TopLevelComplexType -> knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
+                is SimpleType -> knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
+                is org.w3._2001.xmlschema.TopLevelElement -> {
+                    val elementName = QName(thisSchemaTargetNamespace, item.name)
+                    val elementType = findElementTypeOrCreateDynamically(item, thisSchemaTargetNamespace, knownBlocks);
+                    knownBlocks.add(TopLevelElement(elementName, elementType))
                 }
             }
         }
@@ -192,18 +185,12 @@ class XmlSchemaParser {
 
         for (sequenceItem in group.particle) {
             if (sequenceItem is JAXBElement<*>) {
-                val actualEntry = sequenceItem.value
-
-                if (actualEntry is Element) {
-                    if (actualEntry.type != null) {
-                        elementsInThisGroup.add(Element(actualEntry.name, determineNamespace(thisSchemaTargetNamespace, actualEntry.type)))
-                    } else {
-                        val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(actualEntry, thisSchemaTargetNamespace, knownBlocks)
-                        knownBlocks.add(dynamicStructure)
-                        elementsInThisGroup.add(Element(actualEntry.name, dynamicStructure.getQName()))
+                when (val actualEntry = sequenceItem.value) {
+                    is Element -> {
+                        val elementType: QName = findElementTypeOrCreateDynamically(actualEntry, thisSchemaTargetNamespace, knownBlocks)
+                        elementsInThisGroup.add(Element(actualEntry.name, elementType, minOccurs(actualEntry.minOccurs)))
                     }
-                } else if (actualEntry is ExplicitGroup) {
-                    when {
+                    is ExplicitGroup -> when {
                         sequenceItem.name.localPart == "sequence" -> {
                             elementsInThisGroup.add(SequenceOfElements(extractElementsFromGroup(actualEntry, thisSchemaTargetNamespace, knownBlocks)))
                         }
@@ -212,8 +199,7 @@ class XmlSchemaParser {
                         }
                         else -> throw IllegalArgumentException("BOOM")
                     }
-                } else {
-                    throw IllegalArgumentException("I have no clue...")
+                    else -> throw IllegalArgumentException("I have no clue...")
                 }
             } else {
                 throw IllegalArgumentException("I have no clue...")
@@ -221,6 +207,24 @@ class XmlSchemaParser {
         }
 
         return elementsInThisGroup
+    }
+
+    private fun minOccurs(minOccurs: BigInteger?): Int {
+        return minOccurs?.intValueExact() ?: 1
+    }
+
+    private fun findElementTypeOrCreateDynamically(
+            element: Element,
+            thisSchemaTargetNamespace: String,
+            knownBlocks: KnownBuildingBlocks
+    ): QName {
+        return if (element.type != null) {
+            determineNamespace(thisSchemaTargetNamespace, element.type)
+        } else {
+            val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(element, thisSchemaTargetNamespace, knownBlocks)
+            knownBlocks.add(dynamicStructure)
+            dynamicStructure.getQName()
+        }
     }
 
     private fun findBaseType(item: org.w3._2001.xmlschema.ComplexType): QName? {

@@ -20,6 +20,36 @@ class ParsingTests {
     }
 
     @Test
+    fun defaultMinOccursShouldBeOne() {
+
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/minoccurs/min_occurs.xsd")
+
+        val emptyName = QName("", "MinOccursSpecificDefault")
+
+        val type = typeDb.getStructure(emptyName)
+
+        Assertions.assertThat(type).isEqualTo(ComplexType(emptyName, listOf(SequenceOfElements(listOf(
+                Element("OneDefault", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs=1)
+        )))))
+    }
+
+    @Test
+    fun minOccursShouldBeRecognized() {
+
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/minoccurs/min_occurs.xsd")
+
+        val targetName = QName("", "MinOccursSpecific")
+
+        val type = typeDb.getStructure(targetName)
+
+        Assertions.assertThat(type).isEqualTo(ComplexType(targetName, listOf(SequenceOfElements(listOf(
+                Element("TwoPlease", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs=2)
+        )))))
+    }
+
+    @Test
     fun loadingOneComplexTypeWithSomeBasicFields() {
 
         val parser = XmlSchemaParser()

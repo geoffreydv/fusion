@@ -55,7 +55,8 @@ abstract class SimpleField(private val name: QName) : Structure {
 }
 
 data class Element(val name: String,
-                   val elementType: QName) : PossiblePartOfGroup, ElementBase, StructureElement {
+                   val elementType: QName,
+                   val minOccurs : Int = 1) : PossiblePartOfGroup, ElementBase, StructureElement {
 
     override fun getDisplayName(): String {
         return name
