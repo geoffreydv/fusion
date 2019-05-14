@@ -145,37 +145,38 @@ class XmlSchemaParser {
                                  knownBlocks: KnownBuildingBlocks): ComplexType {
 
         val baseType: QName? = findBaseType(item)
-
-        // Find a group inside this complex type
-
-        val firstGroup = findFirstGroup(item)
+        val firstContentGroup = findFirstGroup(item)
 
         return ComplexType(
                 QName(thisSchemaTargetNamespace, customName ?: item.name!!),
-                listOf(parseGroup(firstGroup, thisSchemaTargetNamespace, knownBlocks)),
+                parseGroup(firstContentGroup, thisSchemaTargetNamespace, knownBlocks),
                 item.isAbstract,
                 baseType)
     }
 
-    private fun findFirstGroup(item: org.w3._2001.xmlschema.ComplexType): Pair<ExplicitGroup, GroupType> {
+    private fun findFirstGroup(item: org.w3._2001.xmlschema.ComplexType): Pair<ExplicitGroup, GroupType>? {
         return when {
             item.complexContent?.extension?.sequence != null -> Pair(item.complexContent?.extension?.sequence!!, GroupType.SEQUENCE)
             item.sequence != null -> Pair(item.sequence, GroupType.SEQUENCE)
             item.choice != null -> Pair(item.choice, GroupType.CHOICE)
-            else -> throw IllegalArgumentException("No group could be detected")
+            else -> null
         }
     }
 
-    private fun parseGroup(item: Pair<ExplicitGroup, GroupType>,
+    private fun parseGroup(group: Pair<ExplicitGroup, GroupType>?,
                            thisSchemaTargetNamespace: String,
-                           knownBlocks: KnownBuildingBlocks): FieldGroup {
+                           knownBlocks: KnownBuildingBlocks): List<StructureElement> {
 
-        val children = extractElementsFromGroup(item.first, thisSchemaTargetNamespace, knownBlocks)
+        if (group == null) {
+            return listOf()
+        }
 
-        if (item.second == GroupType.SEQUENCE) {
-            return SequenceOfElements(children)
-        } else if (item.second == GroupType.CHOICE) {
-            return ChoiceOfElements(children)
+        val children = extractElementsFromGroup(group.first, thisSchemaTargetNamespace, knownBlocks)
+
+        if (group.second == GroupType.SEQUENCE) {
+            return listOf(SequenceOfElements(children))
+        } else if (group.second == GroupType.CHOICE) {
+            return listOf(ChoiceOfElements(children))
         }
 
         throw IllegalArgumentException("Sorry, I have no clue")

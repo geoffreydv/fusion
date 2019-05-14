@@ -19,6 +19,9 @@ fun main() {
     val parser = XmlSchemaParser()
 
     xsdFiles.forEach {
+
+        println("Reading file: " + it.absoluteFile)
+
         val knowledge = parser.readAllElementsAndTypesInFile(it.absolutePath)
 
         val amountOfElements = knowledge.getKnownElements().size

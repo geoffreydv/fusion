@@ -7,6 +7,19 @@ import org.junit.Test
 class ParsingTests {
 
     @Test
+    fun loadingEmptyComplexTypeShouldNotCrash() {
+
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/empty_complex_type.xsd")
+
+        val emptyName = QName("", "EmptyOne")
+
+        val type = typeDb.getStructure(emptyName)
+
+        Assertions.assertThat(type).isEqualTo(ComplexType(emptyName, listOf()))
+    }
+
+    @Test
     fun loadingOneComplexTypeWithSomeBasicFields() {
 
         val parser = XmlSchemaParser()
