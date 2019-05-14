@@ -49,7 +49,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
 
         val domElement = when (val structure = typeDb.getStructure(element.getStructureReference())
                 ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")) {
-            is GroupOfSimpleFields -> createDomElementForGroupOfSimpleFields(element, doc, structure, renderingConfig, stack)
+            is ComplexType -> createDomElementForGroupOfSimpleFields(element, doc, structure, renderingConfig, stack)
             is SimpleField -> createDomElementForSimpleField(element, doc, structure, renderingConfig)
             else -> throw IllegalArgumentException("How did I even get here?")
         }
@@ -67,7 +67,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
     private fun createDomElementForGroupOfSimpleFields(
             element: ElementBase,
             doc: Document,
-            structure: GroupOfSimpleFields,
+            structure: ComplexType,
             renderingConfig: RenderingConfig,
             stack: ElementStack
     ): Element {
@@ -85,7 +85,7 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return domElement
     }
 
-    private fun modifyDomElementToMatchConcreteImplementationType(concreteImplementation: GroupOfSimpleFields, domElement: Element) {
+    private fun modifyDomElementToMatchConcreteImplementationType(concreteImplementation: ComplexType, domElement: Element) {
         if (concreteImplementation.name.namespace != "") {
             domElement.setAttribute("xmlns:impl", concreteImplementation.name.namespace)
             domElement.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:type", "impl:${concreteImplementation.name.name}")
@@ -94,9 +94,9 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         }
     }
 
-    private fun findConcreteImplementation(structure: GroupOfSimpleFields): GroupOfSimpleFields {
+    private fun findConcreteImplementation(structure: ComplexType): ComplexType {
         // Find the first available concrete type
-        val concreteImplementations: List<GroupOfSimpleFields> = typeDb.getConcreteImplementationsFor(structure.name)
+        val concreteImplementations: List<ComplexType> = typeDb.getConcreteImplementationsFor(structure.name)
 
         if (concreteImplementations.isEmpty()) {
             throw IllegalArgumentException("No concrete implementation was found for abstract type " + structure.name)
@@ -105,24 +105,86 @@ class XmlRenderer(private val typeDb: KnownBuildingBlocks) : Renderer {
         return concreteImplementations[0]
     }
 
-    private fun appendAllChildrenToElement(structure: GroupOfSimpleFields, domElement: Element, doc: Document, renderingConfig: RenderingConfig, stack: ElementStack) {
-        for (field in allFieldsInStructure(structure)) {
-            if (!stack.recursionWillStartWhenAdding(field)) {
-                domElement.appendChild(createDomElementForElement(doc, field, renderingConfig, stack))
+    private fun appendAllChildrenToElement(
+            structure: ComplexType,
+            domElement: Element,
+            doc: Document,
+            renderingConfig: RenderingConfig,
+            stack: ElementStack
+    ) {
+
+        val parts = prependAllParentElements(structure)
+
+        val elements = flattenStructureElementsToListOfElement(parts)
+
+        for (structureElement in elements) {
+
+            if (stack.recursionWillStartWhenAdding(structureElement)) {
+                return
             }
+
+            domElement.appendChild(createDomElementForElement(doc, structureElement, renderingConfig, stack))
         }
     }
 
-    private fun allFieldsInStructure(structure: GroupOfSimpleFields): List<be.geoffrey.fusion.Element> {
-        val parents = typeDb.getParentTypesFor(structure)
+    private fun flattenStructureElementsToListOfElement(parts: MutableList<StructureElement>): List<be.geoffrey.fusion.Element> {
 
-        val elements = mutableListOf<be.geoffrey.fusion.Element>()
+        // Get one or more elements to render and render them
 
-        for (parent in parents) {
-            elements.addAll(parent.fields)
+        // If it's a choice, pick the first one (and keep recursing until finished)
+        // If it's a sequence, add all the elements and keep recursing until finished
+        // If it's an element, create a dom element and render it! (and check the recursing shizzle)
+
+        val flat = mutableListOf<be.geoffrey.fusion.Element>()
+
+        for (part in parts) {
+            when (part) {
+                is be.geoffrey.fusion.Element -> {
+                    return listOf(part)
+                }
+                is SequenceOfElements -> {
+                    if (part.allElements().isEmpty()) {
+                        return listOf()
+                    }
+
+                    for (partInSequence in part.allElements()) {
+                        flat.addAll(flattenStructureElementsToListOfElement(mutableListOf(partInSequence)))
+                    }
+                }
+                is ChoiceOfElements -> {
+                    if (part.allElements().isEmpty()) {
+                        return listOf()
+                    }
+
+                    val elementToRender = decideChoiceElementToRender(part)
+                    if (elementToRender != null) {
+                        flat.addAll(flattenStructureElementsToListOfElement(mutableListOf(elementToRender)))
+                    }
+                }
+            }
         }
 
-        elements.addAll(structure.fields)
+        return flat
+    }
+
+    private fun decideChoiceElementToRender(part: ChoiceOfElements): StructureElement? {
+        if (part.allElements().isEmpty()) {
+            return null
+        }
+
+        return part.allElements()[0]
+    }
+
+    private fun prependAllParentElements(structure: ComplexType): MutableList<StructureElement> {
+        val parents = typeDb.getParentTypesFor(structure)
+
+        val elements = mutableListOf<StructureElement>()
+
+        for (parent in parents) {
+            elements.addAll(parent.children)
+        }
+
+        elements.addAll(structure.children)
         return elements
     }
 

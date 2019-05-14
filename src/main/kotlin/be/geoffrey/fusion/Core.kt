@@ -11,11 +11,9 @@ interface ElementBase {
     fun getStructureReference(): QName
 }
 
-data class Element(val name: String,
-                   val elementType: QName) : PossiblePartOfGroup, ElementBase {
-
+data class TopLevelElement(val name: QName, val elementType: QName) : ElementBase {
     override fun getDisplayName(): String {
-        return name
+        return name.name
     }
 
     override fun getStructureReference(): QName {
@@ -23,9 +21,44 @@ data class Element(val name: String,
     }
 }
 
-data class TopLevelElement(val name: QName, val elementType: QName) : ElementBase {
+data class ComplexType(val name: QName,
+                       val children: List<StructureElement> = listOf(),
+                       val abstract: Boolean = false,
+                       val extensionOf: QName? = null) : Structure {
+    override fun getQName(): QName {
+        return name
+    }
+}
+
+interface StructureElement
+
+interface FieldGroup : StructureElement {
+    fun allElements(): List<StructureElement>
+}
+
+data class SequenceOfElements(private val elements: List<StructureElement> = listOf()) : FieldGroup {
+    override fun allElements(): List<StructureElement> {
+        return elements
+    }
+}
+
+data class ChoiceOfElements(private val elements: List<StructureElement> = listOf()) : FieldGroup {
+    override fun allElements(): List<StructureElement> {
+        return elements
+    }
+}
+
+abstract class SimpleField(private val name: QName) : Structure {
+    override fun getQName(): QName {
+        return name
+    }
+}
+
+data class Element(val name: String,
+                   val elementType: QName) : PossiblePartOfGroup, ElementBase, StructureElement {
+
     override fun getDisplayName(): String {
-        return name.name
+        return name
     }
 
     override fun getStructureReference(): QName {
@@ -54,25 +87,12 @@ interface Structure {
     fun getQName(): QName
 }
 
-abstract class SimpleField(private val name: QName) : Structure {
-    override fun getQName(): QName {
-        return name
-    }
-}
-
-data class GroupOfSimpleFields(val name: QName,
-                               val fields: List<Element>,
-                               val abstract: Boolean = false,
-                               val extensionOf: QName? = null) : Structure {
-    override fun getQName(): QName {
-        return name
-    }
-}
+class NoFields : StructureElement
 
 class ElementStack {
     private val elements: MutableList<ElementBase> = mutableListOf()
 
-    fun isEmpty() = elements.isEmpty()
+    private fun isEmpty() = elements.isEmpty()
 
     fun size() = elements.size
 
@@ -85,8 +105,6 @@ class ElementStack {
         }
         return item
     }
-
-    fun peek(): ElementBase? = elements.lastOrNull()
 
     fun visualizePath(): String {
         return "/" + elements.joinToString("/") {
@@ -171,19 +189,19 @@ open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf
         return null
     }
 
-    fun getConcreteImplementationsFor(name: QName): List<GroupOfSimpleFields> {
+    fun getConcreteImplementationsFor(name: QName): List<ComplexType> {
         return knownStructures.values
-                .filterIsInstance(GroupOfSimpleFields::class.java)
+                .filterIsInstance(ComplexType::class.java)
                 .filter { it.extensionOf == name }
     }
 
-    fun getParentTypesFor(structure: GroupOfSimpleFields): List<GroupOfSimpleFields> {
+    fun getParentTypesFor(structure: ComplexType): List<ComplexType> {
 
         var structToCheck = structure
-        val results = mutableListOf<GroupOfSimpleFields>()
+        val results = mutableListOf<ComplexType>()
 
         while (structToCheck.extensionOf != null) {
-            val base = getStructure(structToCheck.extensionOf!!) as GroupOfSimpleFields
+            val base = getStructure(structToCheck.extensionOf!!) as ComplexType
             results.add(base)
             structToCheck = base
         }

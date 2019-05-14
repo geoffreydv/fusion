@@ -13,11 +13,11 @@ class ParsingTests {
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/one_simple_type_container.xsd")
         val type = typeDb.getStructure(QName("", "TypesTest"))
 
-        Assertions.assertThat(type).isEqualTo(GroupOfSimpleFields(QName("", "TypesTest"), listOf(
+        Assertions.assertThat(type).isEqualTo(ComplexType(QName("", "TypesTest"), listOf(SequenceOfElements(listOf(
                 Element("AString", QName("http://www.w3.org/2001/XMLSchema", "string")),
                 Element("AnInteger", QName("http://www.w3.org/2001/XMLSchema", "integer")),
                 Element("ADouble", QName("http://www.w3.org/2001/XMLSchema", "double")
-                ))))
+                ))))))
     }
 
     @Test
@@ -41,11 +41,12 @@ class ParsingTests {
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/namespace_shizzle/defined_namespaces.xsd")
 
         Assertions.assertThat(typeDb.getStructure(QName("", "Hoi"))).isEqualTo(
-                GroupOfSimpleFields(QName("", "Hoi"),
+                ComplexType(QName("", "Hoi"),
                         listOf(
-                                Element("Ns1", QName("namespace1", "woep")),
-                                Element("Ns2", QName("namespace2", "woep"))
-                        )))
+                                SequenceOfElements(listOf(
+                                        Element("Ns1", QName("namespace1", "woep")),
+                                        Element("Ns2", QName("namespace2", "woep"))
+                                )))))
     }
 
     @Test
@@ -57,10 +58,11 @@ class ParsingTests {
         Assertions.assertThat(typeDb.getStructure(QName("DefaultNamespace", "SimpleHoi"))).isNotNull
 
         Assertions.assertThat(typeDb.getStructure(QName("DefaultNamespace", "Hoi"))).isEqualTo(
-                GroupOfSimpleFields(QName("DefaultNamespace", "Hoi"),
+                ComplexType(QName("DefaultNamespace", "Hoi"),
                         listOf(
-                                Element("Ns1", QName("http://www.w3.org/2001/XMLSchema", "string"))
-                        )))
+                                SequenceOfElements(listOf(
+                                        Element("Ns1", QName("http://www.w3.org/2001/XMLSchema", "string"))
+                                )))))
     }
 
     @Test
@@ -72,10 +74,11 @@ class ParsingTests {
         Assertions.assertThat(typeDb.getStructure(QName("top-level-woep", "IncludedType"))).isNotNull
 
         Assertions.assertThat(typeDb.getStructure(QName("top-level-woep", "Hallo"))).isEqualTo(
-                GroupOfSimpleFields(QName("top-level-woep", "Hallo"),
+                ComplexType(QName("top-level-woep", "Hallo"),
                         listOf(
-                                Element("Included", QName("top-level-woep", "IncludedType"))
-                        )))
+                                SequenceOfElements(listOf(
+                                        Element("Included", QName("top-level-woep", "IncludedType"))
+                                )))))
     }
 
     @Test
@@ -136,9 +139,9 @@ class ParsingTests {
         val generatedType = typeDb.getStructureByPartOfName("", "Van")
         assertThat(generatedType).isNotNull
         assertThat(typeDb.getStructure(QName("", "Wrapper")))
-                .isEqualTo(GroupOfSimpleFields(QName("", "Wrapper"), listOf(
+                .isEqualTo(ComplexType(QName("", "Wrapper"), listOf(SequenceOfElements(listOf(
                         Element("Van", generatedType!!.getQName())
-                )))
+                )))))
     }
 
     @Test
@@ -150,15 +153,42 @@ class ParsingTests {
 
         val string = QName(XMLNS, "string")
         val abstractType = QName("", "AbstractOpdrachtType")
-        val extension1 = QName("", "ConcreteOpdracht")
+        val concreteOpdracht = QName("", "ConcreteOpdracht")
         val extension2 = QName("", "NogSpecifieker")
 
-        assertThat(typeDb.getStructure(abstractType)).isEqualTo(GroupOfSimpleFields(abstractType, listOf(), true))
-        assertThat(typeDb.getStructure(extension1)).isEqualTo(GroupOfSimpleFields(extension1, listOf(
-                Element("ConcreteOpdrachtFieldOne", string)
+        assertThat(typeDb.getStructure(abstractType)).isEqualTo(ComplexType(abstractType, listOf(SequenceOfElements()), true))
+
+        assertThat(typeDb.getStructure(concreteOpdracht)).isEqualTo(ComplexType(concreteOpdracht, listOf(
+                SequenceOfElements(listOf(Element("ConcreteOpdrachtFieldOne", string)))
         ), extensionOf = abstractType))
-        assertThat(typeDb.getStructure(extension2)).isEqualTo(GroupOfSimpleFields(extension2, listOf(
-                Element("NogSpecifiekerFieldOne", string)
-        ), extensionOf = extension1))
+
+        assertThat(typeDb.getStructure(extension2)).isEqualTo(ComplexType(extension2, listOf(
+                SequenceOfElements(listOf(Element("NogSpecifiekerFieldOne", string)))
+        ), extensionOf = concreteOpdracht))
+    }
+
+    @Test
+    fun parsingAChoiceShouldStoreItCorrectly() {
+
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/group_types/choice.xsd")
+
+        val testTypeName = QName("ouch", "TestType")
+
+        val type = typeDb.getStructure(testTypeName)
+
+        Assertions.assertThat(type).isEqualTo(ComplexType(testTypeName, listOf(
+                ChoiceOfElements(listOf(
+                        Element("EitherThis", QName("http://www.w3.org/2001/XMLSchema", "string")),
+                        SequenceOfElements(listOf(
+                                Element("Hallo", QName("http://www.w3.org/2001/XMLSchema", "int"))
+                        )),
+                        ChoiceOfElements(listOf(
+                                Element("bla", QName("http://www.w3.org/2001/XMLSchema", "string")),
+                                SequenceOfElements(listOf(
+                                        Element("hey", QName("http://www.w3.org/2001/XMLSchema", "string"))
+                                )),
+                                Element("HEY", QName("http://www.w3.org/2001/XMLSchema", "int"))
+                        )))))))
     }
 }

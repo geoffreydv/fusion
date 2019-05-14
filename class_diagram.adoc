@@ -1,0 +1,34 @@
+[plantuml]
+----
+
+class ComplexType {
+    name: QName
+    abstract
+    extensionOf
+}
+
+interface StructureElement {
+}
+
+interface FieldGroup extends StructureElement {
+    allElements(): List<StructureElement>
+}
+
+class Element implements StructureElement {
+    name: String
+}
+
+
+class SequenceOfElements implements FieldGroup {
+}
+
+class ChoiceOfElements implements FieldGroup {
+}
+
+ComplexType --> StructureElement : children
+
+SequenceOfElements --> StructureElement
+
+ChoiceOfElements --> StructureElement
+
+----

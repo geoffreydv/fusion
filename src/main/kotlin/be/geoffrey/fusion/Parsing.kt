@@ -2,13 +2,16 @@ package be.geoffrey.fusion
 
 import org.w3._2001.xmlschema.*
 import org.w3._2001.xmlschema.Element
-import org.xml.sax.SAXParseException
 import java.io.File
 import java.io.StringReader
 import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
-import javax.xml.bind.UnmarshalException
+
+enum class GroupType {
+    CHOICE,
+    SEQUENCE
+}
 
 class XmlSchemaParser {
 
@@ -136,56 +139,90 @@ class XmlSchemaParser {
         return enumRestrictions
     }
 
-    private fun parseComplexType(item: ComplexType,
+    private fun parseComplexType(item: org.w3._2001.xmlschema.ComplexType,
                                  thisSchemaTargetNamespace: String,
                                  customName: String? = null,
-                                 knownBlocks: KnownBuildingBlocks): GroupOfSimpleFields {
-
-        val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
-
-        if (item.complexContent?.extension?.sequence != null) {
-            elementsInComplexType.addAll(createElementsFromItemsInSequence(item.complexContent.extension.sequence, thisSchemaTargetNamespace, knownBlocks))
-        } else if (item.sequence != null) {
-            elementsInComplexType.addAll(createElementsFromItemsInSequence(item.sequence, thisSchemaTargetNamespace, knownBlocks))
-        }
+                                 knownBlocks: KnownBuildingBlocks): ComplexType {
 
         val baseType: QName? = findBaseType(item)
 
-        return GroupOfSimpleFields(
+        // Find a group inside this complex type
+
+        val firstGroup = findFirstGroup(item)
+
+        return ComplexType(
                 QName(thisSchemaTargetNamespace, customName ?: item.name!!),
-                elementsInComplexType,
+                listOf(parseGroup(firstGroup, thisSchemaTargetNamespace, knownBlocks)),
                 item.isAbstract,
                 baseType)
     }
 
-    private fun createElementsFromItemsInSequence(
-            sequence: ExplicitGroup,
+    private fun findFirstGroup(item: org.w3._2001.xmlschema.ComplexType): Pair<ExplicitGroup, GroupType> {
+        return when {
+            item.complexContent?.extension?.sequence != null -> Pair(item.complexContent?.extension?.sequence!!, GroupType.SEQUENCE)
+            item.sequence != null -> Pair(item.sequence, GroupType.SEQUENCE)
+            item.choice != null -> Pair(item.choice, GroupType.CHOICE)
+            else -> throw IllegalArgumentException("No group could be detected")
+        }
+    }
+
+    private fun parseGroup(item: Pair<ExplicitGroup, GroupType>,
+                           thisSchemaTargetNamespace: String,
+                           knownBlocks: KnownBuildingBlocks): FieldGroup {
+
+        val children = extractElementsFromGroup(item.first, thisSchemaTargetNamespace, knownBlocks)
+
+        if (item.second == GroupType.SEQUENCE) {
+            return SequenceOfElements(children)
+        } else if (item.second == GroupType.CHOICE) {
+            return ChoiceOfElements(children)
+        }
+
+        throw IllegalArgumentException("Sorry, I have no clue")
+    }
+
+    private fun extractElementsFromGroup(
+            group: ExplicitGroup,
             thisSchemaTargetNamespace: String,
             knownBlocks: KnownBuildingBlocks
-    ): MutableList<be.geoffrey.fusion.Element> {
+    ): MutableList<StructureElement> {
 
-        val elementsInComplexType = mutableListOf<be.geoffrey.fusion.Element>()
+        val elementsInThisGroup = mutableListOf<StructureElement>()
 
-        for (sequenceItem in sequence.particle) {
+        for (sequenceItem in group.particle) {
             if (sequenceItem is JAXBElement<*>) {
                 val actualEntry = sequenceItem.value
 
                 if (actualEntry is Element) {
                     if (actualEntry.type != null) {
-                        elementsInComplexType.add(Element(actualEntry.name, determineNamespace(thisSchemaTargetNamespace, actualEntry.type)))
+                        elementsInThisGroup.add(Element(actualEntry.name, determineNamespace(thisSchemaTargetNamespace, actualEntry.type)))
                     } else {
                         val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(actualEntry, thisSchemaTargetNamespace, knownBlocks)
                         knownBlocks.add(dynamicStructure)
-                        elementsInComplexType.add(Element(actualEntry.name, dynamicStructure.getQName()))
+                        elementsInThisGroup.add(Element(actualEntry.name, dynamicStructure.getQName()))
                     }
+                } else if (actualEntry is ExplicitGroup) {
+                    when {
+                        sequenceItem.name.localPart == "sequence" -> {
+                            elementsInThisGroup.add(SequenceOfElements(extractElementsFromGroup(actualEntry, thisSchemaTargetNamespace, knownBlocks)))
+                        }
+                        sequenceItem.name.localPart == "choice" -> {
+                            elementsInThisGroup.add(ChoiceOfElements(extractElementsFromGroup(actualEntry, thisSchemaTargetNamespace, knownBlocks)))
+                        }
+                        else -> throw IllegalArgumentException("BOOM")
+                    }
+                } else {
+                    throw IllegalArgumentException("I have no clue...")
                 }
+            } else {
+                throw IllegalArgumentException("I have no clue...")
             }
         }
 
-        return elementsInComplexType
+        return elementsInThisGroup
     }
 
-    private fun findBaseType(item: ComplexType): QName? {
+    private fun findBaseType(item: org.w3._2001.xmlschema.ComplexType): QName? {
         val base = item.complexContent?.extension?.base ?: return null
         return QName(base.namespaceURI, base.localPart)
     }

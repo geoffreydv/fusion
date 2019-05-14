@@ -39,10 +39,10 @@ class XmlRenderingTests {
     fun testComplexTypeWithChildren() {
 
         val blocks = XmlBuildingBlocks()
-        blocks.add(GroupOfSimpleFields(QName("shwoep", "SomeType"), listOf(
+        blocks.add(ComplexType(QName("shwoep", "SomeType"), listOf(SequenceOfElements(listOf(
                 Element("FieldOne", QName("http://www.w3.org/2001/XMLSchema", "string")),
                 Element("FieldTwo", QName("http://www.w3.org/2001/XMLSchema", "string"))
-        )))
+        )))))
 
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
         assertThat(output).isEqualToIgnoringWhitespace("""
@@ -60,8 +60,8 @@ class XmlRenderingTests {
         val baseType = QName("", "BaseType")
         val implementation = QName("", "Implementation")
 
-        blocks.add(GroupOfSimpleFields(baseType, listOf(), true))
-        blocks.add(GroupOfSimpleFields(implementation, listOf(), false, baseType))
+        blocks.add(ComplexType(baseType, listOf(), true))
+        blocks.add(ComplexType(implementation, listOf(), false, baseType))
 
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
         assertThat(output).isEqualToIgnoringWhitespace("""<SomeElement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Implementation"/>""")
@@ -76,10 +76,10 @@ class XmlRenderingTests {
         val baseType = QName("", "BaseType")
         val implementation = QName("", "Implementation")
 
-        blocks.add(GroupOfSimpleFields(baseType, listOf(), true))
-        blocks.add(GroupOfSimpleFields(implementation, listOf(
+        blocks.add(ComplexType(baseType, listOf(), true))
+        blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(
                 Element("SomeField", string)
-        ), false, baseType))
+        ))), false, baseType))
 
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
         assertThat(output).isEqualToIgnoringWhitespace("""
@@ -97,17 +97,17 @@ class XmlRenderingTests {
         val implementation = QName("", "Implementation")
         val moreSpecific = QName("", "MoreSpecific")
 
-        blocks.add(GroupOfSimpleFields(baseType, listOf(
+        blocks.add(ComplexType(baseType, listOf(SequenceOfElements(listOf(
                 Element("BaseField", string)
-        ), true))
+        ))), true))
 
-        blocks.add(GroupOfSimpleFields(implementation, listOf(
+        blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(
                 Element("ImplField", string)
-        ), false, baseType))
+        ))), false, baseType))
 
-        blocks.add(GroupOfSimpleFields(moreSpecific, listOf(
+        blocks.add(ComplexType(moreSpecific, listOf(SequenceOfElements(listOf(
                 Element("SpecificField", string)
-        ), false, implementation))
+        ))), false, implementation))
 
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), moreSpecific))
         assertThat(output).isEqualToIgnoringWhitespace("""
@@ -125,10 +125,10 @@ class XmlRenderingTests {
         val blocks = XmlBuildingBlocks()
 
         val recursingTypeName = QName("", "RecursingType")
-        blocks.add(GroupOfSimpleFields(recursingTypeName, listOf(
+        blocks.add(ComplexType(recursingTypeName, listOf(SequenceOfElements(listOf(
                 Element("JustSomeRandomField", QName(XMLNS, "string")),
                 Element("TheCurseOfRecursalot", recursingTypeName)
-        )))
+        )))))
 
         val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "TestElement"), recursingTypeName))
         assertThat(output).isEqualToIgnoringWhitespace("""
