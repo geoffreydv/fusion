@@ -90,6 +90,8 @@ class OptionListingTests {
                 )))).isEmpty()
     }
 
+    // TODO: Add test for choices
+
 //    @Test
 //    fun testProvidingRegexValueRenderingChoice() {
 //

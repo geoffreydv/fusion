@@ -3,7 +3,7 @@ package be.geoffrey.fusion
 data class StackMetadata(var concreteImplementationMarker: QName? = null,
                          var choiceMarker: Int? = null)
 
-class TrackStack {
+class ChosenPaths {
 
     private val elements: MutableList<Pair<Trackable, StackMetadata>> = mutableListOf()
 
@@ -85,10 +85,10 @@ class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
 
         val traverser = ElementTraverser(typeDb, decisions,
                 TraverseHooks(
-                        implementationPossible = fun(stack: TrackStack, possibilities: List<QName>) {
+                        implementationPossible = fun(stack: ChosenPaths, possibilities: List<QName>) {
                             options.add(ImplementationPath(stack.toString(), possibilities))
                         },
-                        choicePossible = fun(stack: TrackStack, indexes: List<Int>) {
+                        choicePossible = fun(stack: ChosenPaths, indexes: List<Int>) {
                             options.add(ChoicePath(stack.toString(), indexes))
                         })
         )
@@ -98,24 +98,14 @@ class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
     }
 }
 
-/**
- *
- * General Idea: Decide which trees to take / traverse
- * Every step:
- * - Log which step you took
- * - Log all the next steps that can be taken from here
- * - If a choice is made -> Follow that branch
- * - If no choice is made -> Follow every possibility
- */
-
-class TraverseHooks(val implementationPossible: (stack: TrackStack, possibilities: List<QName>) -> Unit = fun(_: TrackStack, _: List<QName>) {},
-                    val choicePossible: (stack: TrackStack, indexes: List<Int>) -> Unit  = fun(_: TrackStack, _: List<Int>) {})
+class TraverseHooks(val implementationPossible: (stack: ChosenPaths, possibilities: List<QName>) -> Unit = fun(_: ChosenPaths, _: List<QName>) {},
+                    val choicePossible: (stack: ChosenPaths, indexes: List<Int>) -> Unit  = fun(_: ChosenPaths, _: List<Int>) {})
 
 class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                        private val decisions: Decisions = Decisions(),
                        private val traverseHooks: TraverseHooks = TraverseHooks()) {
 
-    fun traverseElement(element: ElementBase, stack: TrackStack = TrackStack()) {
+    fun traverseElement(element: ElementBase, stack: ChosenPaths = ChosenPaths()) {
 
         stack.push(element)
 
@@ -152,14 +142,14 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
     }
 
     private fun decidePossibleImplementationPathsToFollow(allPossible: List<ComplexType>,
-                                                          stack: TrackStack): List<ComplexType> {
+                                                          stack: ChosenPaths): List<ComplexType> {
 
         val decision = decisions.getImplementationDecision(stack.toString()) ?: return allPossible
         val decidedType = typeDb.getStructure(decision.decision) as ComplexType
         return listOf(decidedType)
     }
 
-    private fun traverseComplexTypeChildren(possibleType: ComplexType, stack: TrackStack, element: ElementBase) {
+    private fun traverseComplexTypeChildren(possibleType: ComplexType, stack: ChosenPaths, element: ElementBase) {
         if (!possibleType.abstract) {
             stack.push(element)
             val children = allChildrenIncludingOnesFromParentTypes(possibleType)
@@ -207,10 +197,8 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
     }
 
     private fun traverseGroupChildren(children: List<StructureElement>,
-                                      stack: TrackStack) {
-
+                                      stack: ChosenPaths) {
         for (child in children) {
-
             when (child) {
                 is Element -> {
                     if (!stack.recursionWillStartWhenAdding(child)) {
@@ -227,7 +215,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
         }
     }
 
-    private fun traverseElementOfGroup(child: StructureElement, stack: TrackStack) {
+    private fun traverseElementOfGroup(child: StructureElement, stack: ChosenPaths) {
         when (child) {
             is Element -> {
                 if (!stack.recursionWillStartWhenAdding(child)) {
@@ -244,7 +232,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
     }
 
-    private fun traverseSequence(stack: TrackStack, child: SequenceOfElements) {
+    private fun traverseSequence(stack: ChosenPaths, child: SequenceOfElements) {
         stack.push(child)
 
         if (child.allElements().isNotEmpty()) {
@@ -255,7 +243,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
         stack.pop()
     }
 
-    private fun traverseChoice(stack: TrackStack, child: ChoiceOfElements) {
+    private fun traverseChoice(stack: ChosenPaths, child: ChoiceOfElements) {
         stack.push(child)
 
         val possibleChoicePaths = child.allElements()
@@ -284,7 +272,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
     }
 
     private fun decidePossibleChoicePathsToFollow(allPossible: List<StructureElement>,
-                                                  stack: TrackStack): List<StructureElement> {
+                                                  stack: ChosenPaths): List<StructureElement> {
         val decision = decisions.getChoiceDecision(stack.toString()) ?: return allPossible
         return listOf(allPossible[decision.index])
     }
