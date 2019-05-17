@@ -18,20 +18,24 @@ fun main() {
     val elementToRender = QName(namespace="http://webservice.geefopdrachtwsdienst-02_00.edelta.mow.vlaanderen.be", name="GeefOpdrachtWsResponse")
     val element = knowledge.getElement(elementToRender)!!
 
-    val renderingConfig = RenderingConfig(listOf(
-            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "VersieType"), "00.00.0000"),
-            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "DatumType"), ",111-10-03"),
-            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "INSZType"), "01010101012"),
-            RegexValueForType(QName("http://generiek-edelta-common.edelta.mow.vlaanderen.be", "UuidType"), "aaaaaaaa-1111-2222-3333-abcdefghijkl"),
-            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "TijdType"), "29:01"),
-            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingIdentificatieType"), "1"),
-            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingOorsprongType"), "2")
-    ))
-    val asXml = XmlRenderer(knowledge).render(element, renderingConfig)
+    val traverser = PossibleOptions(knowledge, element)
 
-    print(asXml)
-
-    print(if (isXmlValid(asXml, schemaLocation)) "VALID" else "INVALID")
+    println(traverser.getChoices())
+//
+//    val renderingConfig = RenderingConfig(listOf(
+//            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "VersieType"), "00.00.0000"),
+//            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "DatumType"), ",111-10-03"),
+//            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "INSZType"), "01010101012"),
+//            RegexValueForType(QName("http://generiek-edelta-common.edelta.mow.vlaanderen.be", "UuidType"), "aaaaaaaa-1111-2222-3333-abcdefghijkl"),
+//            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "TijdType"), "29:01"),
+//            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingIdentificatieType"), "1"),
+//            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "UitzonderingOorsprongType"), "2")
+//    ))
+//    val asXml = XmlRenderer(knowledge).render(element, renderingConfig)
+//
+//    print(asXml)
+//
+//    print(if (isXmlValid(asXml, schemaLocation)) "VALID" else "INVALID")
 }
 
 private fun isXmlValid(

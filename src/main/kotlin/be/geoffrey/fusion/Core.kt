@@ -2,9 +2,11 @@ package be.geoffrey.fusion
 
 data class QName(val namespace: String, val name: String)
 
-interface PossiblePartOfGroup
+interface Trackable {
+    fun shortName(): String
+}
 
-interface ElementBase {
+interface ElementBase : Trackable {
 
     fun getDisplayName(): String
 
@@ -12,6 +14,11 @@ interface ElementBase {
 }
 
 data class TopLevelElement(val name: QName, val elementType: QName) : ElementBase {
+
+    override fun shortName(): String {
+        return name.name
+    }
+
     override fun getDisplayName(): String {
         return name.name
     }
@@ -30,19 +37,25 @@ data class ComplexType(val name: QName,
     }
 }
 
-interface StructureElement
+interface StructureElement : Trackable
 
 interface FieldGroup : StructureElement {
     fun allElements(): List<StructureElement>
 }
 
 data class SequenceOfElements(private val elements: List<StructureElement> = listOf()) : FieldGroup {
+
+    override fun shortName(): String = "Sequence"
+
     override fun allElements(): List<StructureElement> {
         return elements
     }
 }
 
 data class ChoiceOfElements(private val elements: List<StructureElement> = listOf()) : FieldGroup {
+
+    override fun shortName(): String = "Choice"
+
     override fun allElements(): List<StructureElement> {
         return elements
     }
@@ -56,7 +69,11 @@ abstract class SimpleField(private val name: QName) : Structure {
 
 data class Element(val name: String,
                    val elementType: QName,
-                   val minOccurs : Int = 1) : PossiblePartOfGroup, ElementBase, StructureElement {
+                   val minOccurs: Int = 1) : ElementBase, StructureElement {
+
+    override fun shortName(): String {
+        return name
+    }
 
     override fun getDisplayName(): String {
         return name
@@ -88,9 +105,8 @@ interface Structure {
     fun getQName(): QName
 }
 
-class NoFields : StructureElement
-
 class ElementStack {
+
     private val elements: MutableList<ElementBase> = mutableListOf()
 
     private fun isEmpty() = elements.isEmpty()
@@ -145,8 +161,8 @@ class XmlBuildingBlocks : KnownBuildingBlocks(listOf(
 
 open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf()) {
 
-    private val knownStructures = hashMapOf<QName, Structure>()
-    private val knownElements = hashMapOf<QName, TopLevelElement>()
+    private val knownStructures = linkedMapOf<QName, Structure>()
+    private val knownElements = linkedMapOf<QName, TopLevelElement>()
 
     init {
         for (defaultStructure in defaultStructures) {
