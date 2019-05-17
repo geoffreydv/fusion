@@ -115,14 +115,6 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                        private val decisions: Decisions = Decisions(),
                        private val traverseHooks: TraverseHooks = TraverseHooks()) {
 
-//    open fun signalThatChoosingAnImplementationIsPossible(stack: TrackStack, possibilities: List<QName>) {
-//        println("$stack: Multiple implementations possible: $possibilities")
-//    }
-//
-//    open fun signalThatChoosingAChoicePathIsPossible(stack: TrackStack, indexes: List<Int>) {
-//        println("$stack: Please choose a choice path to follow: $indexes")
-//    }
-
     fun traverseElement(element: ElementBase, stack: TrackStack = TrackStack()) {
 
         stack.push(element)
