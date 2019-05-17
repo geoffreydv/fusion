@@ -65,7 +65,7 @@ class OptionListingTests {
 
         val output = PossibleOptions(blocks, TopLevelElement(QName("", "SomeElement"), baseType))
 
-        assertThat(output.getChoices()).contains(ImplementationChoice("/SomeElement", listOf(implementation, implementation2)))
+        assertThat(output.getChoices()).contains(ImplementationPath("/SomeElement", listOf(implementation, implementation2)))
     }
 
     @Test

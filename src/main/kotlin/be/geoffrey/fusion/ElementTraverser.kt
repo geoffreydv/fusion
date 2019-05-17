@@ -1,6 +1,7 @@
 package be.geoffrey.fusion
 
-data class StackMetadata(var concreteImplementationMarker: QName? = null)
+data class StackMetadata(var concreteImplementationMarker: QName? = null,
+                         var choiceMarker: Int? = null)
 
 class TrackStack {
 
@@ -11,10 +12,6 @@ class TrackStack {
     fun size() = elements.size
 
     fun push(item: Trackable) = elements.add(Pair(item, StackMetadata()))
-
-    fun push(item: Trackable, concreteImplementationIndication: QName?) {
-        elements.add(Pair(item, StackMetadata(concreteImplementationIndication)))
-    }
 
     fun pop(): Pair<Trackable, StackMetadata>? {
         val item = elements.lastOrNull()
@@ -31,6 +28,8 @@ class TrackStack {
 
             if (it.second.concreteImplementationMarker != null) {
                 output += "[impl=${it.second.concreteImplementationMarker!!.name}]"
+            } else if(it.second.choiceMarker != null) {
+                output += "[${it.second.choiceMarker}]"
             }
 
             output
@@ -58,15 +57,23 @@ class TrackStack {
 
 interface Choice
 
-data class ImplementationChoice(val path: String, val choices: List<QName>) : Choice
+data class ImplementationPath(val path: String, val choices: List<QName>) : Choice
+
+data class ChoicePath(val path: String, val choices: List<Int>) : Choice
 
 interface Decision
 
 data class ImplementationDecision(val path: String, val decision: QName) : Decision
 
+data class ChoiceDecision(val path: String, val index: Int) : Decision
+
 class Decisions(private val decisions: List<Decision> = listOf()) {
     fun getImplementationDecision(path: String): ImplementationDecision? {
         return decisions.filterIsInstance(ImplementationDecision::class.java).firstOrNull { it.path == path }
+    }
+
+    fun getChoiceDecision(path: String): ChoiceDecision? {
+        return decisions.filterIsInstance(ChoiceDecision::class.java).firstOrNull { it.path == path }
     }
 }
 
@@ -84,7 +91,12 @@ class PossibleOptions(
 
     override fun signalThatChoosingAnImplementationIsPossible(stack: TrackStack, possibilities: List<QName>) {
         super.signalThatChoosingAnImplementationIsPossible(stack, possibilities)
-        options.add(ImplementationChoice(stack.toString(), possibilities))
+        options.add(ImplementationPath(stack.toString(), possibilities))
+    }
+
+    override fun signalThatChoosingAChoicePathIsPossible(stack: TrackStack, indexes: List<Int>) {
+        super.signalThatChoosingAChoicePathIsPossible(stack, indexes)
+        options.add(ChoicePath(stack.toString(), indexes))
     }
 
     fun getChoices(): List<Choice> {
@@ -109,6 +121,10 @@ open class ElementTraverser(private val typeDb: KnownBuildingBlocks,
         println("$stack: Multiple implementations possible: $possibilities")
     }
 
+    open fun signalThatChoosingAChoicePathIsPossible(stack: TrackStack, indexes: List<Int>) {
+        println("$stack: Please choose a choice path to follow: $indexes")
+    }
+
     fun traverseElement(element: ElementBase, stack: TrackStack = TrackStack()) {
 
         stack.push(element)
@@ -121,6 +137,7 @@ open class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                 val pathsToFollow = decidePossibleImplementationPathsToFollow(possibleImplementations, stack)
 
                 if (pathsToFollow.size > 1) {
+                    // If not decided, allow decision
                     signalThatChoosingAnImplementationIsPossible(stack, pathsToFollow.map { it.name })
                 }
 
@@ -159,28 +176,6 @@ open class ElementTraverser(private val typeDb: KnownBuildingBlocks,
             traverseGroupChildren(children, stack)
             stack.pop()
         }
-    }
-
-    private fun traverseChoice(stack: TrackStack, child: ChoiceOfElements) {
-        stack.push(child)
-
-        if (child.allElements().isNotEmpty()) {
-            println(stack)
-            traverseGroupChildren(child.allElements(), stack)
-        }
-
-        stack.pop()
-    }
-
-    private fun traverseSequence(stack: TrackStack, child: SequenceOfElements) {
-        stack.push(child)
-
-        if (child.allElements().isNotEmpty()) {
-            println(stack)
-            traverseGroupChildren(child.allElements(), stack)
-        }
-
-        stack.pop()
     }
 
     private fun allConcreteImplementations(structure: ComplexType): MutableList<ComplexType> {
@@ -239,8 +234,68 @@ open class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                     traverseChoice(stack, child)
                 }
             }
-
-
         }
+    }
+
+    private fun traverseElementOfGroup(child: StructureElement, stack: TrackStack) {
+        when (child) {
+            is Element -> {
+                if (!stack.recursionWillStartWhenAdding(child)) {
+                    traverseElement(child, stack)
+                }
+            }
+            is SequenceOfElements -> {
+                traverseSequence(stack, child)
+            }
+            is ChoiceOfElements -> {
+                traverseChoice(stack, child)
+            }
+        }
+
+    }
+
+    private fun traverseSequence(stack: TrackStack, child: SequenceOfElements) {
+        stack.push(child)
+
+        if (child.allElements().isNotEmpty()) {
+            println(stack)
+            traverseGroupChildren(child.allElements(), stack)
+        }
+
+        stack.pop()
+    }
+
+    private fun traverseChoice(stack: TrackStack, child: ChoiceOfElements) {
+        stack.push(child)
+
+        val possibleChoicePaths = child.allElements()
+
+        if (possibleChoicePaths.isNotEmpty()) {
+
+            val pathsToFollow = decidePossibleChoicePathsToFollow(possibleChoicePaths, stack)
+
+            if (pathsToFollow.size > 1) {
+                // If not decided, allow decision
+                signalThatChoosingAChoicePathIsPossible(stack, (0 until pathsToFollow.size).toList())
+            }
+
+            for ((index, pathToFollow) in pathsToFollow.withIndex()) {
+
+                if (possibleChoicePaths.size > 1) {
+                    stack.getCurrentElementMetadata().choiceMarker = index
+                }
+
+                println(stack)
+                traverseElementOfGroup(pathToFollow, stack)
+            }
+        }
+
+        stack.pop()
+    }
+
+    private fun decidePossibleChoicePathsToFollow(allPossible: List<StructureElement>,
+                                                  stack: TrackStack): List<StructureElement> {
+        val decision = decisions.getChoiceDecision(stack.toString()) ?: return allPossible
+        return listOf(allPossible[decision.index])
     }
 }
