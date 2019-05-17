@@ -11,9 +11,9 @@ class OptionListingTests {
     fun testNoOptionsForSimpleType() {
         val blocks = XmlBuildingBlocks()
 
-        val output = PossibleOptions(blocks, TopLevelElement(QName("shwoep", "MyName"), STRING))
+        val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoices()).isEmpty()
+        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("shwoep", "MyName"), STRING))).isEmpty()
     }
 
     @Test
@@ -28,9 +28,9 @@ class OptionListingTests {
                 Element("FieldTwo", STRING)
         )))))
 
-        val output = PossibleOptions(blocks, TopLevelElement(QName("", "Element"), typeName))
+        val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoices()).isEmpty()
+        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("", "Element"), typeName))).isEmpty()
     }
 
     @Test
@@ -44,9 +44,9 @@ class OptionListingTests {
         blocks.add(ComplexType(baseType, listOf(), true))
         blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(Element("SomeField", STRING)))), false, baseType))
 
-        val output = PossibleOptions(blocks, TopLevelElement(QName("", "SomeElement"), baseType))
+        val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoices()).isEmpty()
+        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("", "SomeElement"), baseType))).isEmpty()
     }
 
     @Test
@@ -63,9 +63,10 @@ class OptionListingTests {
         blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(Element("SomeField", STRING)))), false, baseType))
         blocks.add(ComplexType(implementation2, listOf(SequenceOfElements(listOf(Element("SomeField", STRING)))), false, baseType))
 
-        val output = PossibleOptions(blocks, TopLevelElement(QName("", "SomeElement"), baseType))
+        val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoices()).contains(ImplementationPath("/SomeElement", listOf(implementation, implementation2)))
+        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("", "SomeElement"), baseType)))
+                .contains(ImplementationPath("/SomeElement", listOf(implementation, implementation2)))
     }
 
     @Test
@@ -81,13 +82,12 @@ class OptionListingTests {
         blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(Element("SomeFieldOne", STRING)))), false, baseType))
         blocks.add(ComplexType(implementation2, listOf(SequenceOfElements(listOf(Element("SomeFieldTwo", STRING)))), false, baseType))
 
-        println("HEY")
+        val output = PossibleOptions(blocks)
 
-        val output = PossibleOptions(blocks, TopLevelElement(QName("", "SomeElement"), baseType), Decisions(listOf(
-                ImplementationDecision("/SomeElement", implementation2)
-        )))
-
-        assertThat(output.getChoices()).isEmpty()
+        assertThat(output.getChoicesForTraversingElement(
+                TopLevelElement(QName("", "SomeElement"), baseType),
+                Decisions(listOf(ImplementationDecision("/SomeElement", implementation2)
+                )))).isEmpty()
     }
 
 //    @Test

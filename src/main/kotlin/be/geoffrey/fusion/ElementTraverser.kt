@@ -28,7 +28,7 @@ class TrackStack {
 
             if (it.second.concreteImplementationMarker != null) {
                 output += "[impl=${it.second.concreteImplementationMarker!!.name}]"
-            } else if(it.second.choiceMarker != null) {
+            } else if (it.second.choiceMarker != null) {
                 output += "[${it.second.choiceMarker}]"
             }
 
@@ -77,29 +77,23 @@ class Decisions(private val decisions: List<Decision> = listOf()) {
     }
 }
 
-class PossibleOptions(
-        typeDb: KnownBuildingBlocks,
-        element: TopLevelElement,
-        decisions: Decisions = Decisions()
-) : ElementTraverser(typeDb, decisions) {
+class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
 
-    private val options = mutableListOf<Choice>()
+    fun getChoicesForTraversingElement(element: TopLevelElement, decisions: Decisions = Decisions()): MutableList<Choice> {
 
-    init {
-        traverseElement(element)
-    }
+        val options = mutableListOf<Choice>()
 
-    override fun signalThatChoosingAnImplementationIsPossible(stack: TrackStack, possibilities: List<QName>) {
-        super.signalThatChoosingAnImplementationIsPossible(stack, possibilities)
-        options.add(ImplementationPath(stack.toString(), possibilities))
-    }
+        val traverser = ElementTraverser(typeDb, decisions,
+                TraverseHooks(
+                        implementationPossible = fun(stack: TrackStack, possibilities: List<QName>) {
+                            options.add(ImplementationPath(stack.toString(), possibilities))
+                        },
+                        choicePossible = fun(stack: TrackStack, indexes: List<Int>) {
+                            options.add(ChoicePath(stack.toString(), indexes))
+                        })
+        )
 
-    override fun signalThatChoosingAChoicePathIsPossible(stack: TrackStack, indexes: List<Int>) {
-        super.signalThatChoosingAChoicePathIsPossible(stack, indexes)
-        options.add(ChoicePath(stack.toString(), indexes))
-    }
-
-    fun getChoices(): List<Choice> {
+        traverser.traverseElement(element)
         return options
     }
 }
@@ -114,16 +108,20 @@ class PossibleOptions(
  * - If no choice is made -> Follow every possibility
  */
 
-open class ElementTraverser(private val typeDb: KnownBuildingBlocks,
-                            private val decisions: Decisions = Decisions()) {
+class TraverseHooks(val implementationPossible: (stack: TrackStack, possibilities: List<QName>) -> Unit = fun(_: TrackStack, _: List<QName>) {},
+                    val choicePossible: (stack: TrackStack, indexes: List<Int>) -> Unit  = fun(_: TrackStack, _: List<Int>) {})
 
-    open fun signalThatChoosingAnImplementationIsPossible(stack: TrackStack, possibilities: List<QName>) {
-        println("$stack: Multiple implementations possible: $possibilities")
-    }
+class ElementTraverser(private val typeDb: KnownBuildingBlocks,
+                       private val decisions: Decisions = Decisions(),
+                       private val traverseHooks: TraverseHooks = TraverseHooks()) {
 
-    open fun signalThatChoosingAChoicePathIsPossible(stack: TrackStack, indexes: List<Int>) {
-        println("$stack: Please choose a choice path to follow: $indexes")
-    }
+//    open fun signalThatChoosingAnImplementationIsPossible(stack: TrackStack, possibilities: List<QName>) {
+//        println("$stack: Multiple implementations possible: $possibilities")
+//    }
+//
+//    open fun signalThatChoosingAChoicePathIsPossible(stack: TrackStack, indexes: List<Int>) {
+//        println("$stack: Please choose a choice path to follow: $indexes")
+//    }
 
     fun traverseElement(element: ElementBase, stack: TrackStack = TrackStack()) {
 
@@ -138,7 +136,7 @@ open class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
                 if (pathsToFollow.size > 1) {
                     // If not decided, allow decision
-                    signalThatChoosingAnImplementationIsPossible(stack, pathsToFollow.map { it.name })
+                    traverseHooks.implementationPossible(stack, pathsToFollow.map { it.name })
                 }
 
                 for (possibleType in pathsToFollow) {
@@ -276,7 +274,7 @@ open class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
             if (pathsToFollow.size > 1) {
                 // If not decided, allow decision
-                signalThatChoosingAChoicePathIsPossible(stack, (0 until pathsToFollow.size).toList())
+                traverseHooks.choicePossible(stack, (0 until pathsToFollow.size).toList())
             }
 
             for ((index, pathToFollow) in pathsToFollow.withIndex()) {

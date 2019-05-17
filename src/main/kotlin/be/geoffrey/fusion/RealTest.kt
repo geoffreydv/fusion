@@ -18,9 +18,9 @@ fun main() {
     val elementToRender = QName(namespace="http://webservice.geefvastleggingenws-02_00.edelta.mow.vlaanderen.be", name="GeefVastleggingenWs")
     val element = knowledge.getElement(elementToRender)!!
 
-    val traverser = PossibleOptions(knowledge, element)
+    val traverser = PossibleOptions(knowledge)
 
-    println(traverser.getChoices())
+    println(traverser.getChoicesForTraversingElement(element))
 //
 //    val renderingConfig = RenderingConfig(listOf(
 //            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "VersieType"), "00.00.0000"),
