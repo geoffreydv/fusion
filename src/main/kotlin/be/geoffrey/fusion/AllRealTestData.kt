@@ -46,7 +46,7 @@ fun main() {
                         RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "Datum2_0Type"), "2008-01-10")
                 ))
 
-                val asXml = XmlRenderer(knowledge).render(knownElement, renderingConfig)
+                val asXml = XmlRenderer2(knowledge).render(knownElement, renderingConfig)
 
                 if(!isXmlValid(asXml, it.absolutePath)) {
                     println(asXml)
