@@ -3,21 +3,22 @@ package be.geoffrey.fusion
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 
-class ElementStackTest {
+class ChosenPathsTest {
+
     @Test
     fun testCurrentPathIndication() {
         val element1 = TopLevelElement(QName("a", "element"), QName("a", "b"))
         val element2 = Element("AField", QName("does not", "matter"))
 
-        val stack = ElementStack()
+        val stack = ChosenPaths()
         stack.push(element1)
         stack.push(element2)
 
-        assertThat(stack.visualizePath()).isEqualTo("/element/AField")
+        assertThat(stack.toString()).isEqualTo("/element/AField")
 
         stack.pop()
 
-        assertThat(stack.visualizePath()).isEqualTo("/element")
+        assertThat(stack.toString()).isEqualTo("/element")
     }
 
     @Test
@@ -25,7 +26,7 @@ class ElementStackTest {
         val baseElement1 = TopLevelElement(QName("a", "element"), QName("a", "b"))
         val baseElement2 = Element("AField", QName("does not", "matter"))
 
-        val stack = ElementStack()
+        val stack = ChosenPaths()
         stack.push(baseElement1)
         stack.push(baseElement2)
 
@@ -41,7 +42,7 @@ class ElementStackTest {
         val baseElement1 = TopLevelElement(QName("a", "element"), QName("a", "b"))
         val baseElement2 = Element("AField", QName("does not", "matter"))
 
-        val stack = ElementStack()
+        val stack = ChosenPaths()
         stack.push(baseElement1)
         stack.push(baseElement2)
         stack.push(baseElement2.copy())

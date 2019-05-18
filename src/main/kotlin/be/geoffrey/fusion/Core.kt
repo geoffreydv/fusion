@@ -105,47 +105,6 @@ interface Structure {
     fun getQName(): QName
 }
 
-class ElementStack {
-
-    private val elements: MutableList<ElementBase> = mutableListOf()
-
-    private fun isEmpty() = elements.isEmpty()
-
-    fun size() = elements.size
-
-    fun push(item: ElementBase) = elements.add(item)
-
-    fun pop(): ElementBase? {
-        val item = elements.lastOrNull()
-        if (!isEmpty()) {
-            elements.removeAt(elements.size - 1)
-        }
-        return item
-    }
-
-    fun visualizePath(): String {
-        return "/" + elements.joinToString("/") {
-            when (it) {
-                is TopLevelElement -> it.name.name
-                is Element -> it.name
-                else -> throw IllegalArgumentException("Unknown type")
-            }
-        }
-    }
-
-    override fun toString(): String = elements.toString()
-
-    fun recursionWillStartWhenAdding(element: Element,
-                                     maxDepth: Int = 2): Boolean {
-
-        val previousOccurrences = elements.count {
-            it.getStructureReference() == element.elementType
-        }
-
-        return previousOccurrences >= maxDepth
-    }
-}
-
 const val XMLNS = "http://www.w3.org/2001/XMLSchema"
 
 class XmlBuildingBlocks : KnownBuildingBlocks(listOf(
