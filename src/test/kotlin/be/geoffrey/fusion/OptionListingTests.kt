@@ -13,7 +13,7 @@ class OptionListingTests {
 
         val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("shwoep", "MyName"), STRING))).isEmpty()
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("shwoep", "MyName"), STRING))).isEmpty()
     }
 
     @Test
@@ -30,7 +30,7 @@ class OptionListingTests {
 
         val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("", "Element"), typeName))).isEmpty()
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))).isEmpty()
     }
 
     @Test
@@ -46,7 +46,7 @@ class OptionListingTests {
 
         val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("", "SomeElement"), baseType))).isEmpty()
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "SomeElement"), baseType))).isEmpty()
     }
 
     @Test
@@ -65,7 +65,7 @@ class OptionListingTests {
 
         val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoicesForTraversingElement(TopLevelElement(QName("", "SomeElement"), baseType)))
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "SomeElement"), baseType)))
                 .contains(ImplementationPath("/SomeElement", listOf(implementation, implementation2)))
     }
 
@@ -84,7 +84,7 @@ class OptionListingTests {
 
         val output = PossibleOptions(blocks)
 
-        assertThat(output.getChoicesForTraversingElement(
+        assertThat(output.getAvailablePathForksThroughElement(
                 TopLevelElement(QName("", "SomeElement"), baseType),
                 Decisions(listOf(ImplementationDecision("/SomeElement", implementation2)
                 )))).isEmpty()

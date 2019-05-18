@@ -20,7 +20,7 @@ fun main() {
 
     val traverser = PossibleOptions(knowledge)
 
-    println(traverser.getChoicesForTraversingElement(element))
+    println(traverser.getAvailablePathForksThroughElement(element))
 //
 //    val renderingConfig = RenderingConfig(listOf(
 //            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "VersieType"), "00.00.0000"),

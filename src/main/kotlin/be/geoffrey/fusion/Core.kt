@@ -61,7 +61,7 @@ data class ChoiceOfElements(private val elements: List<StructureElement> = listO
     }
 }
 
-abstract class SimpleField(private val name: QName) : Structure {
+abstract class SimpleType(private val name: QName) : Structure {
     override fun getQName(): QName {
         return name
     }
@@ -85,21 +85,21 @@ data class Element(val name: String,
 }
 
 data class RegexField(private val name: QName,
-                      val pattern: String) : SimpleField(name)
+                      val pattern: String) : SimpleType(name)
 
-data class IntField(private val name: QName) : SimpleField(name)
+data class IntField(private val name: QName) : SimpleType(name)
 
-data class DecimalField(private val name: QName) : SimpleField(name)
+data class DecimalField(private val name: QName) : SimpleType(name)
 
-data class DateTimeField(private val name: QName) : SimpleField(name)
+data class DateTimeField(private val name: QName) : SimpleType(name)
 
-data class BooleanField(private val name: QName) : SimpleField(name)
+data class BooleanField(private val name: QName) : SimpleType(name)
 
-data class StringField(private val name: QName) : SimpleField(name)
+data class StringField(private val name: QName) : SimpleType(name)
 
-data class EnumField(private val name: QName, val possibleValues: List<String>) : SimpleField(name)
+data class EnumField(private val name: QName, val possibleValues: List<String>) : SimpleType(name)
 
-data class Base64Field(private val name: QName) : SimpleField(name)
+data class Base64Field(private val name: QName) : SimpleType(name)
 
 interface Structure {
     fun getQName(): QName

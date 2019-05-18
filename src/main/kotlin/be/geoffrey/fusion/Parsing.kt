@@ -44,7 +44,7 @@ class XmlSchemaParser {
         for (item in schema.simpleTypeOrComplexTypeOrGroup) {
             when (item) {
                 is TopLevelComplexType -> knownBlocks.add(parseComplexType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
-                is SimpleType -> knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
+                is org.w3._2001.xmlschema.SimpleType -> knownBlocks.add(parseSimpleType(item, thisSchemaTargetNamespace, knownBlocks = knownBlocks))
                 is org.w3._2001.xmlschema.TopLevelElement -> {
                     val elementName = QName(thisSchemaTargetNamespace, item.name)
                     val elementType = findElementTypeOrCreateDynamically(item, thisSchemaTargetNamespace, knownBlocks);
@@ -71,11 +71,10 @@ class XmlSchemaParser {
     private fun generateRandomStructureName(item: Element) = item.name + UUID.randomUUID().toString()
 
     private fun parseSimpleType(
-            item: SimpleType,
+            item: org.w3._2001.xmlschema.SimpleType,
             thisSchemaTargetNamespace: String,
             nameOverride: String? = null,
-            knownBlocks: KnownBuildingBlocks
-    ): SimpleField {
+            knownBlocks: KnownBuildingBlocks): SimpleType {
 
         val baseSimpleTypeName = item.restriction.base
                 ?: throw IllegalArgumentException("I have no clue how to parse this, sorry :(")

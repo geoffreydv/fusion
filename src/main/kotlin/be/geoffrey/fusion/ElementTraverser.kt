@@ -3,22 +3,28 @@ package be.geoffrey.fusion
 data class StackMetadata(var concreteImplementationMarker: QName? = null,
                          var choiceMarker: Int? = null)
 
-class ChosenPaths {
-
-    private val elements: MutableList<Pair<Trackable, StackMetadata>> = mutableListOf()
+open class ChosenPaths(private val elements: MutableList<Pair<Trackable, StackMetadata>> = mutableListOf()) {
 
     private fun isEmpty() = elements.isEmpty()
 
     fun size() = elements.size
 
-    fun push(item: Trackable) = elements.add(Pair(item, StackMetadata()))
+    open fun push(item: Trackable) = elements.add(Pair(item, StackMetadata()))
 
-    fun pop(): Pair<Trackable, StackMetadata>? {
+    fun peek(): Pair<Trackable, StackMetadata>? {
+        return elements.lastOrNull()
+    }
+
+    open fun pop(): Pair<Trackable, StackMetadata>? {
         val item = elements.lastOrNull()
         if (!isEmpty()) {
             elements.removeAt(elements.size - 1)
         }
         return item
+    }
+
+    fun getElements(): MutableList<Pair<Trackable, StackMetadata>> {
+        return elements.toMutableList() // Creates a new list
     }
 
     override fun toString(): String {
@@ -55,6 +61,16 @@ class ChosenPaths {
     }
 }
 
+class ReadOnlyChosenPaths(regular: ChosenPaths) : ChosenPaths(regular.getElements()) {
+    override fun push(item: Trackable): Boolean {
+        throw IllegalArgumentException("This class is readonly")
+    }
+
+    override fun pop(): Pair<Trackable, StackMetadata>? {
+        throw IllegalArgumentException("This class is readonly")
+    }
+}
+
 interface Choice
 
 data class ImplementationPath(val path: String, val choices: List<QName>) : Choice
@@ -68,6 +84,11 @@ data class ImplementationDecision(val path: String, val decision: QName) : Decis
 data class ChoiceDecision(val path: String, val index: Int) : Decision
 
 class Decisions(private val decisions: List<Decision> = listOf()) {
+
+    fun add(decision: Decision): Decisions {
+        return Decisions(this.decisions + decision)
+    }
+
     fun getImplementationDecision(path: String): ImplementationDecision? {
         return decisions.filterIsInstance(ImplementationDecision::class.java).firstOrNull { it.path == path }
     }
@@ -79,13 +100,13 @@ class Decisions(private val decisions: List<Decision> = listOf()) {
 
 class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
 
-    fun getChoicesForTraversingElement(element: TopLevelElement, decisions: Decisions = Decisions()): MutableList<Choice> {
+    fun getAvailablePathForksThroughElement(element: TopLevelElement, decisions: Decisions = Decisions()): MutableList<Choice> {
 
         val options = mutableListOf<Choice>()
 
         val traverser = ElementTraverser(typeDb, decisions,
                 TraverseHooks(
-                        implementationPossible = fun(stack: ChosenPaths, possibilities: List<QName>) {
+                        availableImplementationPaths = fun(stack: ChosenPaths, possibilities: List<QName>) {
                             options.add(ImplementationPath(stack.toString(), possibilities))
                         },
                         choicePossible = fun(stack: ChosenPaths, indexes: List<Int>) {
@@ -98,12 +119,16 @@ class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
     }
 }
 
-class TraverseHooks(val implementationPossible: (stack: ChosenPaths, possibilities: List<QName>) -> Unit = fun(_: ChosenPaths, _: List<QName>) {},
-                    val choicePossible: (stack: ChosenPaths, indexes: List<Int>) -> Unit  = fun(_: ChosenPaths, _: List<Int>) {})
+class TraverseHooks(val availableImplementationPaths: (stack: ReadOnlyChosenPaths, possibilities: List<QName>) -> Unit = { _, _ -> },
+                    val choicePossible: (stack: ReadOnlyChosenPaths, indexes: List<Int>) -> Unit = { _, _ -> },
+                    val simpleElementHit: (element: ElementBase, type: SimpleType) -> Unit = { _, _ -> },
+                    val startRenderingComplexElement: (element: ElementBase, stack: ReadOnlyChosenPaths) -> Unit = { _, _ -> },
+                    val finishedRenderingComplexElement: (stack: ReadOnlyChosenPaths) -> Unit = { _ -> }
+)
 
 class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                        private val decisions: Decisions = Decisions(),
-                       private val traverseHooks: TraverseHooks = TraverseHooks()) {
+                       private val hooks: TraverseHooks = TraverseHooks()) {
 
     fun traverseElement(element: ElementBase, stack: ChosenPaths = ChosenPaths()) {
 
@@ -118,24 +143,32 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
                 if (pathsToFollow.size > 1) {
                     // If not decided, allow decision
-                    traverseHooks.implementationPossible(stack, pathsToFollow.map { it.name })
+                    hooks.availableImplementationPaths(ReadOnlyChosenPaths(stack), pathsToFollow.map { it.name })
                 }
 
                 for (possibleType in pathsToFollow) {
 
-                    if (possibleImplementations.size > 1) {
+                    if (possibleImplementations.size > 1 || structure.abstract) {
                         stack.getCurrentElementMetadata().concreteImplementationMarker = possibleType.name
                     }
 
                     println(stack.toString())
 
-                    traverseComplexTypeChildren(possibleType, stack, element)
+                    hooks.startRenderingComplexElement(element, ReadOnlyChosenPaths(stack))
+
+                    if (!possibleType.abstract) {
+                        val children = allChildrenIncludingOnesFromParentTypes(possibleType)
+                        traverseGroupChildren(children, stack)
+                    }
+
+                    hooks.finishedRenderingComplexElement(ReadOnlyChosenPaths(stack))
                 }
             }
-            is SimpleField -> {
+            is SimpleType -> {
                 println(stack.toString())
+                hooks.simpleElementHit(element, structure)
             }
-            else -> throw IllegalArgumentException("blahoe")
+            else -> throw IllegalArgumentException("How did I even end up here?")
         }
 
         stack.pop()
@@ -147,15 +180,6 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
         val decision = decisions.getImplementationDecision(stack.toString()) ?: return allPossible
         val decidedType = typeDb.getStructure(decision.decision) as ComplexType
         return listOf(decidedType)
-    }
-
-    private fun traverseComplexTypeChildren(possibleType: ComplexType, stack: ChosenPaths, element: ElementBase) {
-        if (!possibleType.abstract) {
-            stack.push(element)
-            val children = allChildrenIncludingOnesFromParentTypes(possibleType)
-            traverseGroupChildren(children, stack)
-            stack.pop()
-        }
     }
 
     private fun allConcreteImplementations(structure: ComplexType): MutableList<ComplexType> {
@@ -199,19 +223,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
     private fun traverseGroupChildren(children: List<StructureElement>,
                                       stack: ChosenPaths) {
         for (child in children) {
-            when (child) {
-                is Element -> {
-                    if (!stack.recursionWillStartWhenAdding(child)) {
-                        traverseElement(child, stack)
-                    }
-                }
-                is SequenceOfElements -> {
-                    traverseSequence(stack, child)
-                }
-                is ChoiceOfElements -> {
-                    traverseChoice(stack, child)
-                }
-            }
+            traverseElementOfGroup(child, stack)
         }
     }
 
@@ -229,7 +241,6 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                 traverseChoice(stack, child)
             }
         }
-
     }
 
     private fun traverseSequence(stack: ChosenPaths, child: SequenceOfElements) {
@@ -254,7 +265,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
             if (pathsToFollow.size > 1) {
                 // If not decided, allow decision
-                traverseHooks.choicePossible(stack, (0 until pathsToFollow.size).toList())
+                hooks.choicePossible(ReadOnlyChosenPaths(stack), (0 until pathsToFollow.size).toList())
             }
 
             for ((index, pathToFollow) in pathsToFollow.withIndex()) {
@@ -271,8 +282,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
         stack.pop()
     }
 
-    private fun decidePossibleChoicePathsToFollow(allPossible: List<StructureElement>,
-                                                  stack: ChosenPaths): List<StructureElement> {
+    private fun decidePossibleChoicePathsToFollow(allPossible: List<StructureElement>, stack: ChosenPaths): List<StructureElement> {
         val decision = decisions.getChoiceDecision(stack.toString()) ?: return allPossible
         return listOf(allPossible[decision.index])
     }

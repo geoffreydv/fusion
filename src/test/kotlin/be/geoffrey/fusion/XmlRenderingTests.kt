@@ -8,14 +8,14 @@ class XmlRenderingTests {
     @Test
     fun testRenderingAString() {
         val blocks = XmlBuildingBlocks()
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "string")))
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "string")))
         assertThat(output).isEqualTo("""<MyName xmlns="shwoep">string</MyName>""")
     }
 
     @Test
     fun testRenderingAnInt() {
         val blocks = XmlBuildingBlocks()
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "int")))
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("http://www.w3.org/2001/XMLSchema", "int")))
         assertThat(output).isEqualTo("""<MyName xmlns="shwoep">1</MyName>""")
     }
 
@@ -27,7 +27,7 @@ class XmlRenderingTests {
 
         blocks.add(RegexField(versienummerQName, "\\d{2}"))
 
-        val output = XmlRenderer(blocks).render(
+        val output = XmlRenderer2(blocks).render(
                 TopLevelElement(QName("shwoep", "Nummer"), versienummerQName),
                 RenderingConfig(listOf(RegexValueForType(versienummerQName, "38")))
         )
@@ -44,27 +44,11 @@ class XmlRenderingTests {
                 Element("FieldTwo", QName("http://www.w3.org/2001/XMLSchema", "string"))
         )))))
 
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
         assertThat(output).isEqualToIgnoringWhitespace("""
             <MyName xmlns="shwoep">
                 <FieldOne xmlns="">string</FieldOne>
                 <FieldTwo xmlns="">string</FieldTwo>
-            </MyName>""".trimIndent())
-    }
-
-    @Test
-    fun testMinOccursIsAccountedFor() {
-
-        val blocks = XmlBuildingBlocks()
-        blocks.add(ComplexType(QName("shwoep", "SomeType"), listOf(SequenceOfElements(listOf(
-                Element("FieldOne", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs = 2)
-        )))))
-
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
-        assertThat(output).isEqualToIgnoringWhitespace("""
-            <MyName xmlns="shwoep">
-                <FieldOne xmlns="">string</FieldOne>
-                <FieldOne xmlns="">string</FieldOne>
             </MyName>""".trimIndent())
     }
 
@@ -79,7 +63,7 @@ class XmlRenderingTests {
         blocks.add(ComplexType(baseType, listOf(), true))
         blocks.add(ComplexType(implementation, listOf(), false, baseType))
 
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
         assertThat(output).isEqualToIgnoringWhitespace("""<SomeElement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Implementation"/>""")
     }
 
@@ -97,7 +81,7 @@ class XmlRenderingTests {
                 Element("SomeField", string)
         ))), false, baseType))
 
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("", "SomeElement"), baseType))
         assertThat(output).isEqualToIgnoringWhitespace("""
             <SomeElement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Implementation">
                 <SomeField>string</SomeField>
@@ -124,7 +108,7 @@ class XmlRenderingTests {
                 Element("SpecificField", string)
         ))), false, implementation))
 
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), moreSpecific))
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("", "SomeElement"), moreSpecific))
         assertThat(output).isEqualToIgnoringWhitespace("""
             <SomeElement>
                 <ImplField>string</ImplField>
@@ -144,14 +128,33 @@ class XmlRenderingTests {
                 Element("TheCurseOfRecursalot", recursingTypeName)
         )))))
 
-        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "TestElement"), recursingTypeName))
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("", "TestElement"), recursingTypeName))
         assertThat(output).isEqualToIgnoringWhitespace("""
             <TestElement>
                 <JustSomeRandomField>string</JustSomeRandomField>
                 <TheCurseOfRecursalot>
                     <JustSomeRandomField>string</JustSomeRandomField>
+                    <TheCurseOfRecursalot>
+                        <JustSomeRandomField>string</JustSomeRandomField>
+                    </TheCurseOfRecursalot>
                 </TheCurseOfRecursalot>
             </TestElement>
         """)
+    }
+
+    @Test
+    fun testMinOccursIsAccountedFor() {
+
+        val blocks = XmlBuildingBlocks()
+        blocks.add(ComplexType(QName("shwoep", "SomeType"), listOf(SequenceOfElements(listOf(
+                Element("FieldOne", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs = 2)
+        )))))
+
+        val output = XmlRenderer2(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
+        assertThat(output).isEqualToIgnoringWhitespace("""
+            <MyName xmlns="shwoep">
+                <FieldOne xmlns="">string</FieldOne>
+                <FieldOne xmlns="">string</FieldOne>
+            </MyName>""".trimIndent())
     }
 }
