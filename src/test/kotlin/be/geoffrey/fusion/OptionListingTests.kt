@@ -90,91 +90,54 @@ class OptionListingTests {
                 )))).isEmpty()
     }
 
-    // TODO: Add test for choices
+    @Test
+    fun testChoiceOptionsListingOnlyOneChoice() {
+        val blocks = XmlBuildingBlocks()
 
-//    @Test
-//    fun testProvidingRegexValueRenderingChoice() {
-//
-//        val blocks = XmlBuildingBlocks()
-//        val versienummerQName = QName("shwoep", "VersieNummer")
-//
-//        blocks.add(RegexField(versienummerQName, "\\d{2}"))
-//
-//        val output = XmlRenderer(blocks).render(
-//                TopLevelElement(QName("shwoep", "Nummer"), versienummerQName),
-//                RenderingConfig(listOf(RegexValueForType(versienummerQName, "38")))
-//        )
-//
-//        assertThat(output).isEqualTo("""<Nummer xmlns="shwoep">38</Nummer>""")
-//    }
-//
-//
-//    @Test
-//    fun testMinOccursIsAccountedFor() {
-//
-//        val blocks = XmlBuildingBlocks()
-//        blocks.add(ComplexType(QName("shwoep", "SomeType"), listOf(SequenceOfElements(listOf(
-//                Element("FieldOne", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs = 2)
-//        )))))
-//
-//        val output = XmlRenderer(blocks).render(TopLevelElement(QName("shwoep", "MyName"), QName("shwoep", "SomeType")))
-//        assertThat(output).isEqualToIgnoringWhitespace("""
-//            <MyName xmlns="shwoep">
-//                <FieldOne xmlns="">string</FieldOne>
-//                <FieldOne xmlns="">string</FieldOne>
-//            </MyName>""".trimIndent())
-//    }
-//
-//
-//
-//    @Test
-//    fun testCopyingFieldsFromParentClasses() {
-//        val blocks = XmlBuildingBlocks()
-//
-//        val string = QName(XMLNS, "string")
-//        val baseType = QName("", "BaseType")
-//        val implementation = QName("", "Implementation")
-//        val moreSpecific = QName("", "MoreSpecific")
-//
-//        blocks.add(ComplexType(baseType, listOf(SequenceOfElements(listOf(
-//        ))), true))
-//
-//        blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(
-//                Element("ImplField", string)
-//        ))), false, baseType))
-//
-//        blocks.add(ComplexType(moreSpecific, listOf(SequenceOfElements(listOf(
-//                Element("SpecificField", string)
-//        ))), false, implementation))
-//
-//        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "SomeElement"), moreSpecific))
-//        assertThat(output).isEqualToIgnoringWhitespace("""
-//            <SomeElement>
-//                <ImplField>string</ImplField>
-//                <SpecificField>string</SpecificField>
-//            </SomeElement>
-//            """)
-//    }
-//
-//    @Test
-//    fun testRecursionBreaking() {
-//
-//        val blocks = XmlBuildingBlocks()
-//
-//        val recursingTypeName = QName("", "RecursingType")
-//        blocks.add(ComplexType(recursingTypeName, listOf(SequenceOfElements(listOf(
-//                Element("JustSomeRandomField", QName(XMLNS, "string")),
-//                Element("TheCurseOfRecursalot", recursingTypeName)
-//        )))))
-//
-//        val output = XmlRenderer(blocks).render(TopLevelElement(QName("", "TestElement"), recursingTypeName))
-//        assertThat(output).isEqualToIgnoringWhitespace("""
-//            <TestElement>
-//                <JustSomeRandomField>string</JustSomeRandomField>
-//                <TheCurseOfRecursalot>
-//                    <JustSomeRandomField>string</JustSomeRandomField>
-//                </TheCurseOfRecursalot>
-//            </TestElement>
-//        """)
-//    }
+        val typeName = QName("shwoep", "SomeType")
+
+        blocks.add(ComplexType(typeName, listOf(ChoiceOfElements(listOf(
+                Element("FieldOne", STRING)
+        )))))
+
+        val output = PossibleOptions(blocks)
+
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))).isEmpty()
+    }
+
+    @Test
+    fun testChoiceOptionsListingMultiple() {
+        val blocks = XmlBuildingBlocks()
+
+        val typeName = QName("shwoep", "SomeType")
+
+        blocks.add(ComplexType(typeName, listOf(ChoiceOfElements(listOf(
+                Element("FieldOne", STRING),
+                Element("FieldTwo", STRING)
+        )))))
+
+        val output = PossibleOptions(blocks)
+
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))).contains(
+                ChoicePath("/Element/Choice", listOf(0, 1))
+        )
+    }
+
+    @Test
+    fun testMultipleChoicesButDecisionMade() {
+        val blocks = XmlBuildingBlocks()
+
+        val typeName = QName("shwoep", "SomeType")
+
+        blocks.add(ComplexType(typeName, listOf(ChoiceOfElements(listOf(
+                Element("FieldOne", STRING),
+                Element("FieldTwo", STRING)
+        )))))
+
+        val output = PossibleOptions(blocks)
+
+        assertThat(output.getAvailablePathForksThroughElement(
+                TopLevelElement(QName("", "Element"), typeName),
+                Decisions(listOf(ChoiceDecision("/Element/Choice", 0))))).isEmpty()
+    }
 }
