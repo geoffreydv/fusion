@@ -134,48 +134,50 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
     fun traverseElement(element: ElementBase, stack: ChosenPaths = ChosenPaths()) {
 
-        checkForMultipleTimesToFollowPathDecision(element, stack)
+        val timesToFollow = determineTimesToFollowPath(element, stack)
 
-        stack.push(element)
+        for (followIndex in 0 until timesToFollow) {
 
-        when (val structure = typeDb.getStructure(element.getStructureReference())
-                ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")) {
-            is ComplexType -> {
+            stack.push(element)
 
-                val possibleImplementations = allConcreteImplementations(structure)
-                val pathsToFollow = decidePossibleImplementationPathsToFollow(possibleImplementations, stack)
+            when (val structure = typeDb.getStructure(element.getStructureReference())
+                    ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")) {
+                is ComplexType -> {
+                    val possibleImplementations = allConcreteImplementations(structure)
+                    val pathsToFollow = decidePossibleImplementationPathsToFollow(possibleImplementations, stack)
 
-                if (pathsToFollow.size > 1) {
-                    // If not decided, allow decision
-                    hooks.availableImplementationPaths(ReadOnlyChosenPaths(stack), pathsToFollow.map { it.name })
-                }
-
-                for (possibleType in pathsToFollow) {
-
-                    if (possibleImplementations.size > 1 || structure.abstract) {
-                        stack.getCurrentElementMetadata().concreteImplementationMarker = possibleType.name
+                    if (pathsToFollow.size > 1) {
+                        // If not decided, allow decision
+                        hooks.availableImplementationPaths(ReadOnlyChosenPaths(stack), pathsToFollow.map { it.name })
                     }
 
+                    for (possibleType in pathsToFollow) {
+
+                        if (possibleImplementations.size > 1 || structure.abstract) {
+                            stack.getCurrentElementMetadata().concreteImplementationMarker = possibleType.name
+                        }
+
+                        println(stack.toString())
+
+                        hooks.startRenderingComplexElement(element, ReadOnlyChosenPaths(stack))
+
+                        if (!possibleType.abstract) {
+                            val children = allChildrenIncludingOnesFromParentTypes(possibleType)
+                            traverseGroupChildren(children, stack)
+                        }
+
+                        hooks.finishedRenderingComplexElement(ReadOnlyChosenPaths(stack))
+                    }
+                }
+                is SimpleType -> {
                     println(stack.toString())
-
-                    hooks.startRenderingComplexElement(element, ReadOnlyChosenPaths(stack))
-
-                    if (!possibleType.abstract) {
-                        val children = allChildrenIncludingOnesFromParentTypes(possibleType)
-                        traverseGroupChildren(children, stack)
-                    }
-
-                    hooks.finishedRenderingComplexElement(ReadOnlyChosenPaths(stack))
+                    hooks.simpleElementHit(element, structure)
                 }
+                else -> throw IllegalArgumentException("How did I even end up here?")
             }
-            is SimpleType -> {
-                println(stack.toString())
-                hooks.simpleElementHit(element, structure)
-            }
-            else -> throw IllegalArgumentException("How did I even end up here?")
-        }
 
-        stack.pop()
+            stack.pop()
+        }
     }
 
     private fun decidePossibleImplementationPathsToFollow(allPossible: List<ComplexType>,
@@ -231,7 +233,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
         }
     }
 
-    private fun checkForMultipleTimesToFollowPathDecision(element: ElementBase, stack: ChosenPaths) {
+    private fun determineTimesToFollowPath(element: ElementBase, stack: ChosenPaths): Int {
         if (element is Element) {
             if (element.minOccurs != element.maxOccurs) {
 
@@ -242,8 +244,17 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                     hooks.timesToFollowPathDecision(ReadOnlyChosenPaths(stack), IntRange(element.minOccurs, element.maxOccurs).toList())
                 }
                 stack.pop()
+
+                // Default behavior
+                return when {
+                    element.minOccurs > 0 -> element.minOccurs
+                    else -> 1
+                }
+            } else {
+                return element.minOccurs
             }
         }
+        return 1
     }
 
     private fun traverseElementOfGroup(child: StructureElement, stack: ChosenPaths) {
