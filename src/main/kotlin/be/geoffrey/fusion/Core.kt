@@ -37,13 +37,27 @@ data class ComplexType(val name: QName,
     }
 }
 
-interface StructureElement : Trackable
+interface StructureElement : Trackable {
+    fun minOccurs(): Int
+    fun maxOccurs(): Int
+}
 
 interface FieldGroup : StructureElement {
     fun allElements(): List<StructureElement>
 }
 
-data class SequenceOfElements(private val elements: List<StructureElement> = listOf()) : FieldGroup {
+data class SequenceOfElements(
+        private val elements: List<StructureElement> = listOf(),
+        val minOccurs: Int = 1,
+        val maxOccurs: Int = 1) : FieldGroup {
+
+    override fun minOccurs(): Int {
+        return minOccurs
+    }
+
+    override fun maxOccurs(): Int {
+        return maxOccurs
+    }
 
     override fun shortName(): String = "Sequence"
 
@@ -52,7 +66,17 @@ data class SequenceOfElements(private val elements: List<StructureElement> = lis
     }
 }
 
-data class ChoiceOfElements(private val elements: List<StructureElement> = listOf()) : FieldGroup {
+data class ChoiceOfElements(private val elements: List<StructureElement> = listOf(),
+                            val minOccurs: Int = 1,
+                            val maxOccurs: Int = 1) : FieldGroup {
+
+    override fun minOccurs(): Int {
+        return minOccurs
+    }
+
+    override fun maxOccurs(): Int {
+        return maxOccurs
+    }
 
     override fun shortName(): String = "Choice"
 
@@ -61,15 +85,18 @@ data class ChoiceOfElements(private val elements: List<StructureElement> = listO
     }
 }
 
-abstract class SimpleType(private val name: QName) : Structure {
-    override fun getQName(): QName {
-        return name
-    }
-}
-
 data class Element(val name: String,
                    val elementType: QName,
-                   val minOccurs: Int = 1) : ElementBase, StructureElement {
+                   val minOccurs: Int = 1,
+                   val maxOccurs: Int = 1) : ElementBase, StructureElement {
+
+    override fun minOccurs(): Int {
+        return minOccurs
+    }
+
+    override fun maxOccurs(): Int {
+        return maxOccurs
+    }
 
     override fun shortName(): String {
         return name
@@ -81,6 +108,12 @@ data class Element(val name: String,
 
     override fun getStructureReference(): QName {
         return elementType
+    }
+}
+
+abstract class SimpleType(private val name: QName) : Structure {
+    override fun getQName(): QName {
+        return name
     }
 }
 

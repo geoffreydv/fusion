@@ -77,6 +77,8 @@ data class ImplementationPath(val path: String, val choices: List<QName>) : Choi
 
 data class ChoicePath(val path: String, val choices: List<Int>) : Choice
 
+data class AmountOfTimesToFollowPath(val path: String, val choices: List<Int>) : Choice
+
 interface Decision
 
 data class ImplementationDecision(val path: String, val decision: QName) : Decision
@@ -106,12 +108,10 @@ class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
 
         val traverser = ElementTraverser(typeDb, decisions,
                 TraverseHooks(
-                        availableImplementationPaths = fun(stack: ChosenPaths, possibilities: List<QName>) {
-                            options.add(ImplementationPath(stack.toString(), possibilities))
-                        },
-                        choicePossible = fun(stack: ChosenPaths, indexes: List<Int>) {
-                            options.add(ChoicePath(stack.toString(), indexes))
-                        })
+                        availableImplementationPaths = { stack, possibilities -> options.add(ImplementationPath(stack.toString(), possibilities)) },
+                        choicePossible = { stack, indexes -> options.add(ChoicePath(stack.toString(), indexes)) },
+                        timesToFollowPathDecision = { stack, possibleTimes -> options.add(AmountOfTimesToFollowPath(stack.toString(), possibleTimes)) }
+                )
         )
 
         traverser.traverseElement(element)
@@ -121,6 +121,8 @@ class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
 
 class TraverseHooks(val availableImplementationPaths: (stack: ReadOnlyChosenPaths, possibilities: List<QName>) -> Unit = { _, _ -> },
                     val choicePossible: (stack: ReadOnlyChosenPaths, indexes: List<Int>) -> Unit = { _, _ -> },
+                    val timesToFollowPathDecision: (stack: ReadOnlyChosenPaths, possibleTimes: List<Int>) -> Unit = { _, _ -> },
+
                     val simpleElementHit: (element: ElementBase, type: SimpleType) -> Unit = { _, _ -> },
                     val startRenderingComplexElement: (element: ElementBase, stack: ReadOnlyChosenPaths) -> Unit = { _, _ -> },
                     val finishedRenderingComplexElement: (stack: ReadOnlyChosenPaths) -> Unit = { _ -> }
@@ -131,6 +133,8 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                        private val hooks: TraverseHooks = TraverseHooks()) {
 
     fun traverseElement(element: ElementBase, stack: ChosenPaths = ChosenPaths()) {
+
+        checkForMultipleTimesToFollowPathDecision(element, stack)
 
         stack.push(element)
 
@@ -227,7 +231,23 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
         }
     }
 
+    private fun checkForMultipleTimesToFollowPathDecision(element: ElementBase, stack: ChosenPaths) {
+        if (element is Element) {
+            if (element.minOccurs != element.maxOccurs) {
+
+                stack.push(element) // Pretty lame, I have to add it to correct the path
+                if (element.maxOccurs == Integer.MAX_VALUE) {
+                    hooks.timesToFollowPathDecision(ReadOnlyChosenPaths(stack), listOf(0, Integer.MAX_VALUE))
+                } else {
+                    hooks.timesToFollowPathDecision(ReadOnlyChosenPaths(stack), IntRange(element.minOccurs, element.maxOccurs).toList())
+                }
+                stack.pop()
+            }
+        }
+    }
+
     private fun traverseElementOfGroup(child: StructureElement, stack: ChosenPaths) {
+
         when (child) {
             is Element -> {
                 if (!stack.recursionWillStartWhenAdding(child)) {

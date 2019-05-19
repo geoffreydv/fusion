@@ -140,4 +140,76 @@ class OptionListingTests {
                 TopLevelElement(QName("", "Element"), typeName),
                 Decisions(listOf(ChoiceDecision("/Element/Choice", 0))))).isEmpty()
     }
+
+    @Test
+    fun testMinOccursOneChoices() {
+
+        val blocks = XmlBuildingBlocks()
+
+        val typeName = QName("shwoep", "SomeType")
+
+        blocks.add(ComplexType(typeName, listOf(ChoiceOfElements(listOf(
+                Element("FieldOne", STRING, minOccurs = 1, maxOccurs = 1)
+        )))))
+
+        val output = PossibleOptions(blocks)
+
+        assertThat(output.getAvailablePathForksThroughElement(
+                TopLevelElement(QName("", "Element"), typeName))).isEmpty()
+    }
+
+    @Test
+    fun testMinOccursZeroOrOne() {
+
+        val blocks = XmlBuildingBlocks()
+
+        val typeName = QName("shwoep", "SomeType")
+
+        blocks.add(ComplexType(typeName, listOf(ChoiceOfElements(listOf(
+                Element("FieldOne", STRING, minOccurs = 0, maxOccurs = 1)
+        )))))
+
+        val output = PossibleOptions(blocks)
+
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName)))
+                .contains(AmountOfTimesToFollowPath("/Element/Choice/FieldOne", listOf(0, 1)))
+    }
+
+    @Test
+    fun testOccurrencesRange() {
+
+        val blocks = XmlBuildingBlocks()
+
+        val typeName = QName("shwoep", "SomeType")
+
+        blocks.add(ComplexType(typeName, listOf(ChoiceOfElements(listOf(
+                Element("FieldOne", STRING, minOccurs = 0, maxOccurs = 3)
+        )))))
+
+        val output = PossibleOptions(blocks)
+
+        assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName)))
+                .contains(AmountOfTimesToFollowPath("/Element/Choice/FieldOne", listOf(0, 1, 2, 3)))
+    }
+
+    @Test
+    fun testUnbounded() {
+
+        val blocks = XmlBuildingBlocks()
+
+        val typeName = QName("shwoep", "SomeType")
+
+        blocks.add(ComplexType(typeName, listOf(ChoiceOfElements(listOf(
+                Element("FieldOne", STRING, minOccurs = 0, maxOccurs = Integer.MAX_VALUE)
+        )))))
+
+        val output = PossibleOptions(blocks)
+
+        val availableForks = output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))
+
+        assertThat(availableForks).contains(AmountOfTimesToFollowPath("/Element/Choice/FieldOne", listOf(0, Integer.MAX_VALUE)))
+    }
+
+    // TODO: Test Decisions that have something in their path like [impl=bla] or [0]
+    // TODO: Also things like "the first time you follow, pick this impl, the second time this one..."
 }
