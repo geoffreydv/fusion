@@ -15,11 +15,11 @@ fun main() {
 
     val knowledge = parser.readAllElementsAndTypesInFile(schemaLocation)
 
-    val elementToRender = knowledge.getKnownElements()[0]
+    val elementToRender = knowledge.getElementByPartOfName("GeefOpdrachtResponse")
 
     val traverser = AllPossibleOptions(knowledge)
 
-    println(traverser.getAvailablePathForksThroughElement(elementToRender))
+    println(traverser.getAvailablePathForksThroughElement(elementToRender!!))
 //
 //    val renderingConfig = RenderingConfig(listOf(
 //            RegexValueForType(QName("http://generiek-02_00.vip.vlaanderen.be", "VersieType"), "00.00.0000"),

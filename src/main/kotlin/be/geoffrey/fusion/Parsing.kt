@@ -6,16 +6,15 @@ import org.xmlsoap.schemas.wsdl.TDefinitions
 import org.xmlsoap.schemas.wsdl.TTypes
 import java.io.File
 import java.io.StringReader
+import java.io.StringWriter
 import java.math.BigInteger
 import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
-import javax.xml.transform.stream.StreamResult
-import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.OutputKeys
-import java.io.StringWriter
 import javax.xml.transform.TransformerFactory
-
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 
 
 enum class GroupType {
@@ -29,27 +28,25 @@ class XmlSchemaParser {
 
         val knownBlocks = XmlBuildingBlocks()
 
-        if(schemaFile.endsWith("wsdl")) {
+        if (schemaFile.endsWith("wsdl")) {
 
             val asString = File(schemaFile).readText()
             val sw = StringReader(asString)
-            try {
-                val definitions = JAXB.unmarshal(sw, TDefinitions::class.java)
 
-                for (documented in definitions.anyTopLevelOptionalElement) {
-                    if(documented is TTypes) {
-                        for (child in documented.any) {
-                            if(child is org.w3c.dom.Element && child.localName == "schema") {
-                                val schema = parseXmlSchema(schemaElementToString(child))
-                                indexEverythingInSchema(schema, targetNamespaceOverride, schemaFile, knownBlocks)
-                            }
+            val definitions = JAXB.unmarshal(sw, TDefinitions::class.java)
+
+            for (documented in definitions.anyTopLevelOptionalElement) {
+                if (documented is TTypes) {
+                    for (child in documented.any) {
+                        if (child is org.w3c.dom.Element && child.localName == "schema") {
+                            val schema = parseXmlSchema(schemaElementToString(child))
+                            indexEverythingInSchema(schema, targetNamespaceOverride, schemaFile, knownBlocks)
                         }
                     }
                 }
-            } catch (e: Throwable) {
-                throw IllegalArgumentException(e.message)
             }
-        } else if(schemaFile.endsWith("xsd")) {
+
+        } else if (schemaFile.endsWith("xsd")) {
             val asString = File(schemaFile).readText()
             val schema: Schema = parseXmlSchema(asString)
             indexEverythingInSchema(schema, targetNamespaceOverride, schemaFile, knownBlocks)
@@ -157,10 +154,13 @@ class XmlSchemaParser {
                 is DecimalField -> return DecimalField(nameOfThisType)
                 is DateTimeField -> return DateTimeField(nameOfThisType)
                 is Base64Field -> return Base64Field(nameOfThisType)
+                else -> throw IllegalArgumentException("I don't know anything about this type.")
             }
+        } else {
+            val baseName = resolveQName(thisSchemaTargetNamespace, baseSimpleTypeName)
+            val restrictions = findEnumRestrictions(item.restriction.facets)
+            return NotSpecifiedSimpleType(nameOfThisType, baseName, restrictions)
         }
-
-        throw IllegalArgumentException("Could not determine the basetype of a custom simpletype: $nameOfThisType, base: ${QName(baseSimpleTypeName.namespaceURI, baseSimpleTypeName.localPart)}")
     }
 
     private fun findPatternRestriction(facets: List<Any>): String? =
@@ -232,13 +232,13 @@ class XmlSchemaParser {
 
         val elementsInThisGroup = mutableListOf<StructureElement>()
 
-        for (sequenceItem in group.particle) {
-            if (sequenceItem is JAXBElement<*>) {
-                when (val actualEntry = sequenceItem.value) {
+        for (elementInGroup in group.particle) {
+            if (elementInGroup is JAXBElement<*>) {
+                when (val actualEntry = elementInGroup.value) {
                     is Element -> {
 
                         val ref = actualEntry.ref
-                        if(ref != null) {
+                        if (ref != null) {
                             val ns = resolveQName(thisSchemaTargetNamespace, ref)
                             elementsInThisGroup.add(ElementReference(ns, minOccurs = minOccurs(actualEntry.minOccurs)))
                         } else {
@@ -247,18 +247,20 @@ class XmlSchemaParser {
                         }
                     }
                     is ExplicitGroup -> when {
-                        sequenceItem.name.localPart == "sequence" -> {
+                        elementInGroup.name.localPart == "sequence" -> {
                             elementsInThisGroup.add(SequenceOfElements(extractElementsFromGroup(actualEntry, thisSchemaTargetNamespace, knownBlocks)))
                         }
-                        sequenceItem.name.localPart == "choice" -> {
+                        elementInGroup.name.localPart == "choice" -> {
                             elementsInThisGroup.add(ChoiceOfElements(extractElementsFromGroup(actualEntry, thisSchemaTargetNamespace, knownBlocks)))
                         }
                         else -> throw IllegalArgumentException("BOOM")
                     }
-                    else -> throw IllegalArgumentException("I have no clue...")
+                    else -> throw IllegalArgumentException("I have no clue how to parse this part of a group")
                 }
+            } else if(elementInGroup is org.w3._2001.xmlschema.Any) {
+
             } else {
-                throw IllegalArgumentException("I have no clue...")
+                throw IllegalArgumentException("I have no clue how to render this particle: " + elementInGroup::class.java)
             }
         }
 

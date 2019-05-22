@@ -1,7 +1,5 @@
 package be.geoffrey.fusion
 
-import kotlin.math.min
-
 data class QName(val namespace: String, val name: String)
 
 interface Trackable {
@@ -9,11 +7,8 @@ interface Trackable {
 }
 
 interface ElementBase : Trackable {
-
     fun getDisplayName(): String
-
     fun getStructureReference(): QName?
-
 }
 
 data class TopLevelElement(val name: QName, val elementType: QName) : ElementBase {
@@ -90,7 +85,7 @@ data class ChoiceOfElements(private val elements: List<StructureElement> = listO
 
 data class ElementReference(val ref: QName,
                             val minOccurs: Int = 1,
-                            val maxOccurs: Int = 1): ElementBase, StructureElement {
+                            val maxOccurs: Int = 1) : ElementBase, StructureElement {
     override fun shortName(): String {
         return ref.name
     }
@@ -144,8 +139,7 @@ abstract class SimpleType(private val name: QName) : Structure {
     }
 }
 
-data class RegexField(private val name: QName,
-                      val pattern: String) : SimpleType(name)
+data class RegexField(private val name: QName, val pattern: String) : SimpleType(name)
 
 data class IntField(private val name: QName) : SimpleType(name)
 
@@ -160,6 +154,10 @@ data class StringField(private val name: QName) : SimpleType(name)
 data class EnumField(private val name: QName, val possibleValues: List<String>) : SimpleType(name)
 
 data class Base64Field(private val name: QName) : SimpleType(name)
+
+data class NotSpecifiedSimpleType(private val name: QName,
+                                  val extensionOf: QName,
+                                  val restrictions: List<String>? = null) : SimpleType(name)
 
 interface Structure {
     fun getQName(): QName
@@ -215,9 +213,19 @@ open class KnownBuildingBlocks(defaultStructures: Collection<Structure> = listOf
         return knownStructures[name]
     }
 
-    fun getStructureByPartOfName(namespace: String, partOfName: String): Structure? {
+    fun getStructureByNsAndPartOfName(namespace: String, partOfName: String): Structure? {
         knownStructures.forEach { (qn, structure) ->
             if (qn.namespace == namespace && qn.name.contains(partOfName)) {
+                return structure
+            }
+        }
+
+        return null
+    }
+
+    fun getElementByPartOfName(partOfName: String): TopLevelElement? {
+        knownElements.forEach { (qn, structure) ->
+            if (qn.name.contains(partOfName)) {
                 return structure
             }
         }

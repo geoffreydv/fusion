@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:simpleType name="HoogdringendheidType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="BaseValue"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="Override">
+        <xs:restriction base="HoogdringendheidType">
+            <xs:enumeration value="Nog een waarde..." />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="GoedkeuringsstroomStapType">
+        <xs:sequence>
+            <xs:element name="Hoogdringendheid">
+                <xs:simpleType>
+                    <xs:restriction base="HoogdringendheidType">
+                        <xs:enumeration value="hoogdringend"/>
+                        <xs:enumeration value="niet hoogdringend"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>

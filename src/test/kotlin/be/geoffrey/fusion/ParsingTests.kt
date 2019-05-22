@@ -152,7 +152,7 @@ class ParsingTests {
         val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_complex_type.xsd")
 
-        val inlineType = typeDb.getStructureByPartOfName("foobar", "FoodBar")
+        val inlineType = typeDb.getStructureByNsAndPartOfName("foobar", "FoodBar")
         assertThat(inlineType).isNotNull
 
         Assertions.assertThat(typeDb.getElement(QName("foobar", "FoodBar")))
@@ -165,7 +165,7 @@ class ParsingTests {
         val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_inline_simple_type.xsd")
 
-        val inlineType = typeDb.getStructureByPartOfName("", "Van")
+        val inlineType = typeDb.getStructureByNsAndPartOfName("", "Van")
         assertThat(inlineType).isNotNull
         assertThat(inlineType).isExactlyInstanceOf(IntField::class.java)
 
@@ -179,7 +179,7 @@ class ParsingTests {
         val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/inline_definitions/element_with_inline_nesting.xsd")
 
-        val generatedType = typeDb.getStructureByPartOfName("", "Van")
+        val generatedType = typeDb.getStructureByNsAndPartOfName("", "Van")
         assertThat(generatedType).isNotNull
         assertThat(typeDb.getStructure(QName("", "Wrapper")))
                 .isEqualTo(ComplexType(QName("", "Wrapper"), listOf(SequenceOfElements(listOf(
@@ -240,7 +240,7 @@ class ParsingTests {
         val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/wsdl_support/testschema.wsdl")
 
-        assertThat(typeDb.getStructureByPartOfName("http://esb.mow.vlaanderen.be/wsdl/Opdracht-v4.0", "JustTesting")).isNotNull
+        assertThat(typeDb.getStructureByNsAndPartOfName("http://esb.mow.vlaanderen.be/wsdl/Opdracht-v4.0", "JustTesting")).isNotNull
     }
 
     @Test
@@ -269,5 +269,17 @@ class ParsingTests {
                 ComplexType(typeName, listOf(
                         SequenceOfElements(listOf(
                                 ElementReference(QName("theothernamespace", "SomeFieldInTheOtherNamespace")))))))
+    }
+
+    @Test
+    fun simpleTypeWithOtherSimpleTypeAsBaseShouldBeMergedCorrectly() {
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/simple_types/override_custom_simple_type.xsd")
+
+
+        val structure = typeDb.getStructure(QName("", "Override"))!!
+
+        assertThat(structure).isEqualTo(
+                NotSpecifiedSimpleType(QName("", "Override"), QName("", "HoogdringendheidType"), listOf("Nog een waarde...")))
     }
 }
