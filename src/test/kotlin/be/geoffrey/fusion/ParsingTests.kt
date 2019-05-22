@@ -234,4 +234,12 @@ class ParsingTests {
                                 Element("HEY", QName("http://www.w3.org/2001/XMLSchema", "int"))
                         )))))))
     }
+
+    @Test
+    fun parsingAWsdlShouldFindSchemas() {
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/wsdl_support/testschema.wsdl")
+
+        assertThat(typeDb.getStructureByPartOfName("http://esb.mow.vlaanderen.be/wsdl/Opdracht-v4.0","JustTesting")).isNotNull
+    }
 }

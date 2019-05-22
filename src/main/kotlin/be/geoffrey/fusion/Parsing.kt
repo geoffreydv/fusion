@@ -2,12 +2,21 @@ package be.geoffrey.fusion
 
 import org.w3._2001.xmlschema.*
 import org.w3._2001.xmlschema.Element
+import org.xmlsoap.schemas.wsdl.TDefinitions
+import org.xmlsoap.schemas.wsdl.TTypes
 import java.io.File
 import java.io.StringReader
 import java.math.BigInteger
 import java.util.*
 import javax.xml.bind.JAXB
 import javax.xml.bind.JAXBElement
+import javax.xml.transform.stream.StreamResult
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.OutputKeys
+import java.io.StringWriter
+import javax.xml.transform.TransformerFactory
+
+
 
 enum class GroupType {
     CHOICE,
@@ -20,14 +29,36 @@ class XmlSchemaParser {
 
         val knownBlocks = XmlBuildingBlocks()
 
-        val asString = File(schemaFile).readText()
-        val sw = StringReader(asString)
-        val schema: Schema
-        try {
-            schema = JAXB.unmarshal(sw, Schema::class.java)
-        } catch (e: Throwable) {
-            throw IllegalArgumentException(e.message)
+        if(schemaFile.endsWith("wsdl")) {
+
+            val asString = File(schemaFile).readText()
+            val sw = StringReader(asString)
+            try {
+                val definitions = JAXB.unmarshal(sw, TDefinitions::class.java)
+
+                for (documented in definitions.anyTopLevelOptionalElement) {
+                    if(documented is TTypes) {
+                        for (child in documented.any) {
+                            if(child is org.w3c.dom.Element && child.localName == "schema") {
+                                val schema = parseXmlSchema(schemaElementToString(child))
+                                indexEverythingInSchema(schema, targetNamespaceOverride, schemaFile, knownBlocks)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                throw IllegalArgumentException(e.message)
+            }
+        } else if(schemaFile.endsWith("xsd")) {
+            val asString = File(schemaFile).readText()
+            val schema: Schema = parseXmlSchema(asString)
+            indexEverythingInSchema(schema, targetNamespaceOverride, schemaFile, knownBlocks)
         }
+
+        return knownBlocks
+    }
+
+    private fun indexEverythingInSchema(schema: Schema, targetNamespaceOverride: String?, schemaFile: String, knownBlocks: XmlBuildingBlocks) {
 
         val thisSchemaTargetNamespace = determineTargetNamespace(schema, targetNamespaceOverride)
 
@@ -52,7 +83,27 @@ class XmlSchemaParser {
                 }
             }
         }
-        return knownBlocks
+    }
+
+    private fun schemaElementToString(element: org.w3c.dom.Element): String {
+
+        val transFactory = TransformerFactory.newInstance()
+        val transformer = transFactory.newTransformer()
+        val buffer = StringWriter()
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
+        transformer.transform(DOMSource(element), StreamResult(buffer))
+        return buffer.toString()
+    }
+
+    private fun parseXmlSchema(asString: String): Schema {
+        val sw = StringReader(asString)
+        val schema: Schema
+        try {
+            schema = JAXB.unmarshal(sw, Schema::class.java)
+        } catch (e: Throwable) {
+            throw IllegalArgumentException(e.message)
+        }
+        return schema
     }
 
     private fun extractDynamicStructureFromInlineTypeOfElement(

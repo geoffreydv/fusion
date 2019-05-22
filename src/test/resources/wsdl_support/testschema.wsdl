@@ -1,0 +1,19 @@
+<wsdl:definitions name="OpdrachtDienst-v4.0" targetNamespace="http://esb.mow.vlaanderen.be/wsdl/Opdracht-v4.0"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    <wsdl:types>
+        <xsd:schema elementFormDefault="qualified"
+                    targetNamespace="http://esb.mow.vlaanderen.be/wsdl/Opdracht-v4.0">
+            <xsd:element name="JustTesting">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="TestNummer" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </wsdl:types>
+
+
+</wsdl:definitions>
