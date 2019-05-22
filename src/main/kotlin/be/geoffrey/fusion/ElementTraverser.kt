@@ -275,6 +275,14 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                     traverseElement(child, stack)
                 }
             }
+            is ElementReference -> {
+                val actualElementTl = typeDb.getElement(child.ref)
+                val actualElement = actualElementTl!!.toElementAsField(child.minOccurs, child.maxOccurs)
+
+                if (!stack.recursionWillStartWhenAdding(actualElement)) {
+                    traverseElement(child, stack)
+                }
+            }
             is SequenceOfElements -> {
                 traverseSequence(stack, child)
             }

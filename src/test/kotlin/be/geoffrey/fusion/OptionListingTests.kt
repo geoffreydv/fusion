@@ -3,6 +3,8 @@ package be.geoffrey.fusion
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 
+// TODO: Test for traversing with element ref. Too lazy now.
+
 class OptionListingTests {
 
     private val STRING = QName("http://www.w3.org/2001/XMLSchema", "string")

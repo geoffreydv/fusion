@@ -24,6 +24,10 @@ data class TopLevelElement(val name: QName, val elementType: QName) : ElementBas
     override fun getStructureReference(): QName {
         return elementType
     }
+
+    fun toElementAsField(minOccurs: Int, maxOccurs: Int): Element {
+        return Element(shortName(), getStructureReference(), minOccurs, maxOccurs)
+    }
 }
 
 data class ComplexType(val name: QName,
