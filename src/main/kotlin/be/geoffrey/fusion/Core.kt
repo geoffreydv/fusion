@@ -1,5 +1,7 @@
 package be.geoffrey.fusion
 
+import kotlin.math.min
+
 data class QName(val namespace: String, val name: String)
 
 interface Trackable {
@@ -10,7 +12,8 @@ interface ElementBase : Trackable {
 
     fun getDisplayName(): String
 
-    fun getStructureReference(): QName
+    fun getStructureReference(): QName?
+
 }
 
 data class TopLevelElement(val name: QName, val elementType: QName) : ElementBase {
@@ -85,6 +88,30 @@ data class ChoiceOfElements(private val elements: List<StructureElement> = listO
     }
 }
 
+data class ElementReference(val ref: QName,
+                            val minOccurs: Int = 1,
+                            val maxOccurs: Int = 1): ElementBase, StructureElement {
+    override fun shortName(): String {
+        return ref.name
+    }
+
+    override fun getDisplayName(): String {
+        return ref.name
+    }
+
+    override fun getStructureReference(): QName? {
+        return null
+    }
+
+    override fun minOccurs(): Int {
+        return minOccurs
+    }
+
+    override fun maxOccurs(): Int {
+        return maxOccurs
+    }
+}
+
 data class Element(val name: String,
                    val elementType: QName,
                    val minOccurs: Int = 1,
@@ -103,10 +130,10 @@ data class Element(val name: String,
     }
 
     override fun getDisplayName(): String {
-        return name
+        return shortName()
     }
 
-    override fun getStructureReference(): QName {
+    override fun getStructureReference(): QName? {
         return elementType
     }
 }

@@ -138,10 +138,12 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
         for (followIndex in 0 until timesToFollow) {
 
-            stack.push(element)
+            val actual = replaceWithActualElementIfRef(element)
 
-            when (val structure = typeDb.getStructure(element.getStructureReference())
-                    ?: throw IllegalArgumentException("The required type for element ${element.getDisplayName()} was not found: ${element.getStructureReference()}")) {
+            stack.push(actual)
+
+            when (val structure = typeDb.getStructure(actual.getStructureReference()!!)
+                    ?: throw IllegalArgumentException("The required type for element ${actual.getDisplayName()} was not found: ${actual.getStructureReference()}")) {
                 is ComplexType -> {
                     val possibleImplementations = allConcreteImplementations(structure)
                     val pathsToFollow = decidePossibleImplementationPathsToFollow(possibleImplementations, stack)
@@ -159,7 +161,7 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
 
                         println(stack.toString())
 
-                        hooks.startRenderingComplexElement(element, ReadOnlyChosenPaths(stack))
+                        hooks.startRenderingComplexElement(actual, ReadOnlyChosenPaths(stack))
 
                         if (!possibleType.abstract) {
                             val children = allChildrenIncludingOnesFromParentTypes(possibleType)
@@ -171,12 +173,20 @@ class ElementTraverser(private val typeDb: KnownBuildingBlocks,
                 }
                 is SimpleType -> {
                     println(stack.toString())
-                    hooks.simpleElementHit(element, structure)
+                    hooks.simpleElementHit(actual, structure)
                 }
                 else -> throw IllegalArgumentException("How did I even end up here?")
             }
 
             stack.pop()
+        }
+    }
+
+    private fun replaceWithActualElementIfRef(element: ElementBase): ElementBase {
+        return if (element is ElementReference) {
+            typeDb.getElement(element.ref)!!
+        } else {
+            element
         }
     }
 

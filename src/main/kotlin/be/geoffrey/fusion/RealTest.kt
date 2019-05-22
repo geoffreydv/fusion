@@ -11,7 +11,7 @@ import javax.xml.validation.SchemaFactory
 fun main() {
     val parser = XmlSchemaParser()
 
-    val schemaLocation = "C:\\projects\\roots\\mow\\edelta-consumer-connector\\src\\main\\resources\\META-INF\\wsdl\\v20\\Opvragen\\KoppelOpdracht-01.00\\KoppelOpdrachtWsResponse.xsd"
+    val schemaLocation = "C:\\projects\\roots\\mow\\schema\\target\\classes\\Dienst\\Opdracht\\v3.2\\Opdracht.wsdl"
 
     val knowledge = parser.readAllElementsAndTypesInFile(schemaLocation)
 

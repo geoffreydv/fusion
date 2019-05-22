@@ -30,7 +30,7 @@ class ParsingTests {
         val type = typeDb.getStructure(emptyName)
 
         Assertions.assertThat(type).isEqualTo(ComplexType(emptyName, listOf(SequenceOfElements(listOf(
-                Element("OneDefault", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs=1)
+                Element("OneDefault", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs = 1)
         )))))
     }
 
@@ -45,7 +45,7 @@ class ParsingTests {
         val type = typeDb.getStructure(targetName)
 
         Assertions.assertThat(type).isEqualTo(ComplexType(targetName, listOf(SequenceOfElements(listOf(
-                Element("TwoPlease", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs=2)
+                Element("TwoPlease", QName("http://www.w3.org/2001/XMLSchema", "string"), minOccurs = 2)
         )))))
     }
 
@@ -240,6 +240,34 @@ class ParsingTests {
         val parser = XmlSchemaParser()
         val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/wsdl_support/testschema.wsdl")
 
-        assertThat(typeDb.getStructureByPartOfName("http://esb.mow.vlaanderen.be/wsdl/Opdracht-v4.0","JustTesting")).isNotNull
+        assertThat(typeDb.getStructureByPartOfName("http://esb.mow.vlaanderen.be/wsdl/Opdracht-v4.0", "JustTesting")).isNotNull
+    }
+
+    @Test
+    fun elementRefShouldBeIndicatedCorrectly() {
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/ref_test/RefTests.xsd")
+
+        val typeName = QName("", "RefTests")
+
+        val refTests = typeDb.getStructure(typeName)
+        assertThat(refTests).isEqualTo(
+                ComplexType(typeName, listOf(
+                        SequenceOfElements(listOf(
+                                ElementReference(QName("", "RefField")))))))
+    }
+
+    @Test
+    fun elementRefToExternalItemShouldBeIndicatedCorrectly() {
+        val parser = XmlSchemaParser()
+        val typeDb = parser.readAllElementsAndTypesInFile("src/test/resources/ref_test/RefTests.xsd")
+
+        val typeName = QName("", "RefTests2")
+
+        val refTests = typeDb.getStructure(typeName)
+        assertThat(refTests).isEqualTo(
+                ComplexType(typeName, listOf(
+                        SequenceOfElements(listOf(
+                                ElementReference(QName("theothernamespace", "SomeFieldInTheOtherNamespace")))))))
     }
 }

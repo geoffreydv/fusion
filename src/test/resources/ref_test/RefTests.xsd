@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:temp="theothernamespace" targetNamespace="">
+
+    <xs:complexType name="RefTests">
+        <xs:sequence>
+            <xs:element ref="RefField" minOccurs="1" maxOccurs="2"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:element name="RefField" type="xs:string"/>
+
+    <xs:complexType name="RefTests2">
+        <xs:sequence>
+            <xs:element ref="temp:SomeFieldInTheOtherNamespace" minOccurs="1" maxOccurs="2"/>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>

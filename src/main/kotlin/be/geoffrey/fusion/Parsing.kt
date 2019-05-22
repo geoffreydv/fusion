@@ -236,8 +236,15 @@ class XmlSchemaParser {
             if (sequenceItem is JAXBElement<*>) {
                 when (val actualEntry = sequenceItem.value) {
                     is Element -> {
-                        val elementType: QName = findElementTypeOrCreateDynamically(actualEntry, thisSchemaTargetNamespace, knownBlocks)
-                        elementsInThisGroup.add(Element(actualEntry.name, elementType, minOccurs(actualEntry.minOccurs)))
+
+                        val ref = actualEntry.ref
+                        if(ref != null) {
+                            val ns = resolveQName(thisSchemaTargetNamespace, ref)
+                            elementsInThisGroup.add(ElementReference(ns, minOccurs = minOccurs(actualEntry.minOccurs)))
+                        } else {
+                            val elementType: QName = findElementTypeOrCreateDynamically(actualEntry, thisSchemaTargetNamespace, knownBlocks)
+                            elementsInThisGroup.add(Element(actualEntry.name, elementType, minOccurs = minOccurs(actualEntry.minOccurs)))
+                        }
                     }
                     is ExplicitGroup -> when {
                         sequenceItem.name.localPart == "sequence" -> {
@@ -268,7 +275,7 @@ class XmlSchemaParser {
             knownBlocks: KnownBuildingBlocks
     ): QName {
         return if (element.type != null) {
-            determineNamespace(thisSchemaTargetNamespace, element.type)
+            resolveQName(thisSchemaTargetNamespace, element.type)
         } else {
             val dynamicStructure = extractDynamicStructureFromInlineTypeOfElement(element, thisSchemaTargetNamespace, knownBlocks)
             knownBlocks.add(dynamicStructure)
@@ -281,7 +288,7 @@ class XmlSchemaParser {
         return QName(base.namespaceURI, base.localPart)
     }
 
-    private fun determineNamespace(thisSchemaTargetNamespace: String, originalQName: javax.xml.namespace.QName): QName {
+    private fun resolveQName(thisSchemaTargetNamespace: String, originalQName: javax.xml.namespace.QName): QName {
         val referencedNamespace = if (!originalQName.namespaceURI.isNullOrEmpty()) originalQName.namespaceURI else thisSchemaTargetNamespace
         return QName(referencedNamespace, originalQName.localPart)
     }
