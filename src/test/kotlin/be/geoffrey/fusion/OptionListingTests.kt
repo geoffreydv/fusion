@@ -11,7 +11,7 @@ class OptionListingTests {
     fun testNoOptionsForSimpleType() {
         val blocks = XmlBuildingBlocks()
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("shwoep", "MyName"), STRING))).isEmpty()
     }
@@ -28,7 +28,7 @@ class OptionListingTests {
                 Element("FieldTwo", STRING)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))).isEmpty()
     }
@@ -44,7 +44,7 @@ class OptionListingTests {
         blocks.add(ComplexType(baseType, listOf(), true))
         blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(Element("SomeField", STRING)))), false, baseType))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "SomeElement"), baseType))).isEmpty()
     }
@@ -63,10 +63,10 @@ class OptionListingTests {
         blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(Element("SomeField", STRING)))), false, baseType))
         blocks.add(ComplexType(implementation2, listOf(SequenceOfElements(listOf(Element("SomeField", STRING)))), false, baseType))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "SomeElement"), baseType)))
-                .contains(ImplementationPath("/SomeElement", listOf(implementation, implementation2)))
+                .contains(ImplementationChoice("/SomeElement", listOf(implementation, implementation2)))
     }
 
     @Test
@@ -82,7 +82,7 @@ class OptionListingTests {
         blocks.add(ComplexType(implementation, listOf(SequenceOfElements(listOf(Element("SomeFieldOne", STRING)))), false, baseType))
         blocks.add(ComplexType(implementation2, listOf(SequenceOfElements(listOf(Element("SomeFieldTwo", STRING)))), false, baseType))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(
                 TopLevelElement(QName("", "SomeElement"), baseType),
@@ -100,7 +100,7 @@ class OptionListingTests {
                 Element("FieldOne", STRING)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))).isEmpty()
     }
@@ -116,10 +116,10 @@ class OptionListingTests {
                 Element("FieldTwo", STRING)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))).contains(
-                ChoicePath("/Element/Choice", listOf(0, 1))
+                ChoiceIndexChoice("/Element/Choice", listOf(0, 1))
         )
     }
 
@@ -134,7 +134,7 @@ class OptionListingTests {
                 Element("FieldTwo", STRING)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(
                 TopLevelElement(QName("", "Element"), typeName),
@@ -152,7 +152,7 @@ class OptionListingTests {
                 Element("FieldOne", STRING, minOccurs = 1, maxOccurs = 1)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(
                 TopLevelElement(QName("", "Element"), typeName))).isEmpty()
@@ -169,10 +169,10 @@ class OptionListingTests {
                 Element("FieldOne", STRING, minOccurs = 0, maxOccurs = 1)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName)))
-                .contains(AmountOfTimesToFollowPath("/Element/Choice/FieldOne", listOf(0, 1)))
+                .contains(AmountOfTimesToFollowPathChoice("/Element/Choice/FieldOne", listOf(0, 1)))
     }
 
     @Test
@@ -186,10 +186,10 @@ class OptionListingTests {
                 Element("FieldOne", STRING, minOccurs = 0, maxOccurs = 3)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         assertThat(output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName)))
-                .contains(AmountOfTimesToFollowPath("/Element/Choice/FieldOne", listOf(0, 1, 2, 3)))
+                .contains(AmountOfTimesToFollowPathChoice("/Element/Choice/FieldOne", listOf(0, 1, 2, 3)))
     }
 
     @Test
@@ -203,11 +203,11 @@ class OptionListingTests {
                 Element("FieldOne", STRING, minOccurs = 0, maxOccurs = Integer.MAX_VALUE)
         )))))
 
-        val output = PossibleOptions(blocks)
+        val output = AllPossibleOptions(blocks)
 
         val availableForks = output.getAvailablePathForksThroughElement(TopLevelElement(QName("", "Element"), typeName))
 
-        assertThat(availableForks).contains(AmountOfTimesToFollowPath("/Element/Choice/FieldOne", listOf(0, Integer.MAX_VALUE)))
+        assertThat(availableForks).contains(AmountOfTimesToFollowPathChoice("/Element/Choice/FieldOne", listOf(0, Integer.MAX_VALUE)))
     }
 
     // TODO: Test Decisions that have something in their path like [impl=bla] or [0]

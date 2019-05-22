@@ -26,13 +26,30 @@ interface Renderer {
 
 }
 
+interface DecisionStrategy {
+    fun getPossibilitiesToRender(element: TopLevelElement, db: KnownBuildingBlocks): List<Decisions>
+}
+
+class FollowValidRulesAndAddAsMuchVarietyAsPossibleInOneGo : DecisionStrategy {
+    override fun getPossibilitiesToRender(element: TopLevelElement, db: KnownBuildingBlocks): List<Decisions> {
+
+        val options = AllPossibleOptions(db).getAvailablePathForksThroughElement(element)
+
+        val decisions = mutableListOf<Decision>()
+
+        for (option in options) {
+            if (option is ImplementationChoice) {
+                decisions.add(ImplementationDecision(option.path, option.choices[0]))
+            }
+        }
+
+        return listOf(Decisions(decisions))
+    }
+}
+
 class XmlRenderer2(private val typeDb: KnownBuildingBlocks) : Renderer {
 
     override fun render(element: TopLevelElement, renderingConfig: RenderingConfig, decisions: Decisions): String {
-//         First run through the element to check for the available decisions
-        val options = PossibleOptions(typeDb).getAvailablePathForksThroughElement(element, decisions)
-//        val decisions = Decisions()
-
         val document = prepareDocumentForAppendingElementsTo()
 
         var elementToAddTo: Element? = null

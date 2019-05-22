@@ -73,11 +73,11 @@ class ReadOnlyChosenPaths(regular: ChosenPaths) : ChosenPaths(regular.getElement
 
 interface Choice
 
-data class ImplementationPath(val path: String, val choices: List<QName>) : Choice
+data class ImplementationChoice(val path: String, val choices: List<QName>) : Choice
 
-data class ChoicePath(val path: String, val choices: List<Int>) : Choice
+data class ChoiceIndexChoice(val path: String, val choices: List<Int>) : Choice
 
-data class AmountOfTimesToFollowPath(val path: String, val choices: List<Int>) : Choice
+data class AmountOfTimesToFollowPathChoice(val path: String, val choices: List<Int>) : Choice
 
 interface Decision
 
@@ -85,7 +85,7 @@ data class ImplementationDecision(val path: String, val decision: QName) : Decis
 
 data class ChoiceDecision(val path: String, val index: Int) : Decision
 
-class Decisions(private val decisions: List<Decision> = listOf()) {
+class Decisions(val decisions: List<Decision> = listOf()) {
 
     fun add(decision: Decision): Decisions {
         return Decisions(this.decisions + decision)
@@ -100,7 +100,7 @@ class Decisions(private val decisions: List<Decision> = listOf()) {
     }
 }
 
-class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
+class AllPossibleOptions(private val typeDb: KnownBuildingBlocks) {
 
     fun getAvailablePathForksThroughElement(element: TopLevelElement, decisions: Decisions = Decisions()): MutableList<Choice> {
 
@@ -108,9 +108,9 @@ class PossibleOptions(private val typeDb: KnownBuildingBlocks) {
 
         val traverser = ElementTraverser(typeDb, decisions,
                 TraverseHooks(
-                        availableImplementationPaths = { stack, possibilities -> options.add(ImplementationPath(stack.toString(), possibilities)) },
-                        choicePossible = { stack, indexes -> options.add(ChoicePath(stack.toString(), indexes)) },
-                        timesToFollowPathDecision = { stack, possibleTimes -> options.add(AmountOfTimesToFollowPath(stack.toString(), possibleTimes)) }
+                        availableImplementationPaths = { stack, possibilities -> options.add(ImplementationChoice(stack.toString(), possibilities)) },
+                        choicePossible = { stack, indexes -> options.add(ChoiceIndexChoice(stack.toString(), indexes)) },
+                        timesToFollowPathDecision = { stack, possibleTimes -> options.add(AmountOfTimesToFollowPathChoice(stack.toString(), possibleTimes)) }
                 )
         )
 
